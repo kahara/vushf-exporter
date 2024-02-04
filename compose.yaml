@@ -1,0 +1,8 @@
+version: '3.9'
+
+services:
+  vushf-exporter:
+    image: jonikahara/vushf-exporter
+    ports:
+      - '9108:9108'
+    restart: always

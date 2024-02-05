@@ -18,7 +18,7 @@ var (
 	received_metric *prometheus.CounterVec
 )
 
-func SetupMetrics(topics map[string]string) {
+func SetupMetrics() {
 	sent_metric = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: Namespace,
 		Subsystem: Subsystem,

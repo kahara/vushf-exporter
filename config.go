@@ -17,7 +17,7 @@ const (
 type Config struct {
 	Bands         []string
 	TargetCountry int
-	Topics        map[string]string
+	Topics        []string
 	MqttServer    string
 	MetricAddr    string
 }
@@ -43,10 +43,9 @@ func NewConfig() *Config {
 	}
 
 	// MQTT topics
-	config.Topics = make(map[string]string)
 	for _, band := range config.Bands {
-		config.Topics[fmt.Sprintf("%s_sent_total", band)] = fmt.Sprintf("pskr/filter/v2/%s/+/+/+/+/+/%d/+", band, config.TargetCountry)
-		config.Topics[fmt.Sprintf("%s_received_total", band)] = fmt.Sprintf("pskr/filter/v2/%s/+/+/+/+/+/+/%d", band, config.TargetCountry)
+		config.Topics = append(config.Topics, fmt.Sprintf("pskr/filter/v2/%s/+/+/+/+/+/%d/+", band, config.TargetCountry))
+		config.Topics = append(config.Topics, fmt.Sprintf("pskr/filter/v2/%s/+/+/+/+/+/+/%d", band, config.TargetCountry))
 	}
 
 	// MQTT Server

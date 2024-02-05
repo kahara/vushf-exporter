@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/rs/zerolog/log"
-	"time"
 )
 
 func main() {
@@ -10,14 +9,8 @@ func main() {
 
 	log.Debug().Any("config", config).Msg("")
 
-	SetupMetrics(config.Topics)
+	SetupMetrics()
 	go Metrics(config.MetricAddr)
 
-	for name, topic := range config.Topics {
-		go Poll(config.MqttServer, name, topic, config.TargetCountry)
-	}
-
-	for {
-		time.Sleep(time.Second)
-	}
+	Subscribe(*config)
 }

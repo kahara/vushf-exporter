@@ -47,9 +47,16 @@ skipped.
 
 ## Configuration
 
-Default are as follows:
+All settings go through environment variables, with following defaults:
 
 * MQTT_SERVER `mqtt.pskreporter.info:1883`
 * TARGET_COUNTRY `224`
 * BANDS `6m,4m,2m,70cm,23cm`
 * METRICS_ADDR `:9108`
+
+## Screenshot!
+
+Need to trick Grafana to use same color for each band in both panels, but
+anyway:
+
+![Screenshot](screenshot-1.png)

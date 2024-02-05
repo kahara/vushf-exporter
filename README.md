@@ -56,3 +56,7 @@ All settings go through environment variables, with following defaults:
 
 ## Screenshot!
 
+Need to trick Grafana to use same color for each band in both panels, but
+anyway:
+
+![Screenshot](screenshot-1.png)

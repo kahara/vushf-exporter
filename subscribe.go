@@ -67,9 +67,5 @@ func Subscribe(config Config) {
 			time.Sleep(time.Duration(time.Second))
 			continue
 		}
-
-		for {
-			time.Sleep(time.Duration(time.Second))
-		}
 	}
 }

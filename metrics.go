@@ -16,6 +16,7 @@ const (
 var (
 	sent_metric     *prometheus.CounterVec
 	received_metric *prometheus.CounterVec
+	local_metric    *prometheus.CounterVec
 )
 
 func SetupMetrics() {
@@ -30,11 +31,17 @@ func SetupMetrics() {
 		Subsystem: Subsystem,
 		Name:      "received_total",
 	}, []string{"country", "band"})
+
+	local_metric = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: Namespace,
+		Subsystem: Subsystem,
+		Name:      "local_total",
+	}, []string{"country", "band"})
 }
 
-func Metrics(metricsAddr string) {
+func Metrics(addrPort string) {
 	http.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(metricsAddr, nil); err != nil {
-		log.Fatal().Err(err).Str("addrport", metricsAddr).Msg("Could not expose Prometheus metrics")
+	if err := http.ListenAndServe(addrPort, nil); err != nil {
+		log.Fatal().Err(err).Str("addrport", addrPort).Msg("Could not expose Prometheus metrics")
 	}
 }

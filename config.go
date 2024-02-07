@@ -8,18 +8,18 @@ import (
 )
 
 const (
-	DefaultBands         = "6m,4m,2m,70cm,23cm"
-	DefaultTargetCountry = 224 // Finland; see https://www.adif.org/304/ADIF_304.htm#Country_Codes
-	DefaultMqttServer    = "mqtt.pskreporter.info:1883"
-	DefaultMetricAddr    = ":9108"
+	DefaultBands    = "6m,4m,2m,70cm,23cm"
+	DefaultCountry  = 224 // Finland; see https://www.adif.org/304/ADIF_304.htm#Country_Codes
+	DefaultBroker   = "mqtt.pskreporter.info:1883"
+	DefaultAddrPort = ":9108"
 )
 
 type Config struct {
-	Bands         []string
-	TargetCountry int
-	Topics        []string
-	MqttServer    string
-	MetricAddr    string
+	Broker   string
+	Bands    []string
+	Country  int
+	Topics   []string
+	AddrPort string
 }
 
 func NewConfig() *Config {
@@ -34,34 +34,34 @@ func NewConfig() *Config {
 	}
 
 	// Target country
-	targetCountry := os.Getenv("TARGET_COUNTRY")
+	targetCountry := os.Getenv("COUNTRY")
 	if targetCountry == "" {
-		config.TargetCountry = DefaultTargetCountry
+		config.Country = DefaultCountry
 	} else {
 		c, _ := strconv.Atoi(targetCountry)
-		config.TargetCountry = c
+		config.Country = c
 	}
 
 	// MQTT topics
 	for _, band := range config.Bands {
-		config.Topics = append(config.Topics, fmt.Sprintf("pskr/filter/v2/%s/+/+/+/+/+/%d/+", band, config.TargetCountry))
-		config.Topics = append(config.Topics, fmt.Sprintf("pskr/filter/v2/%s/+/+/+/+/+/+/%d", band, config.TargetCountry))
+		config.Topics = append(config.Topics, fmt.Sprintf("pskr/filter/v2/%s/+/+/+/+/+/%d/+", band, config.Country))
+		config.Topics = append(config.Topics, fmt.Sprintf("pskr/filter/v2/%s/+/+/+/+/+/+/%d", band, config.Country))
 	}
 
-	// MQTT Server
-	mqttServer := os.Getenv("MQTT_SERVER")
+	// MQTT broker
+	mqttServer := os.Getenv("BROKER")
 	if mqttServer == "" {
-		config.MqttServer = DefaultMqttServer
+		config.Broker = DefaultBroker
 	} else {
-		config.MqttServer = mqttServer
+		config.Broker = mqttServer
 	}
 
 	// Metrics' address
-	metricAddr := os.Getenv("METRICS_ADDR")
-	if metricAddr == "" {
-		config.MetricAddr = DefaultMetricAddr
+	addrPort := os.Getenv("ADDRPORT")
+	if addrPort == "" {
+		config.AddrPort = DefaultAddrPort
 	} else {
-		config.MetricAddr = metricAddr
+		config.AddrPort = addrPort
 	}
 
 	return &config

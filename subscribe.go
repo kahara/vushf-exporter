@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/rs/zerolog/log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"strconv"
@@ -26,6 +27,8 @@ type Payload struct {
 	Band             string `json:"b"`
 }
 
+var seenMessages map[mqtt.Message]time.Time
+
 func Subscribe(config Config) {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(config.Broker)
@@ -40,28 +43,37 @@ func Subscribe(config Config) {
 		topics[topic] = 0
 	}
 
+	seenMessages = make(map[mqtt.Message]time.Time)
+
 	opts.OnConnect = func(client mqtt.Client) {
 		log.Info().Str("server", config.Broker).Msg("Connecting")
 
-		token := client.SubscribeMultiple(topics, func(client mqtt.Client, msg mqtt.Message) {
+		token := client.SubscribeMultiple(topics, func(client mqtt.Client, message mqtt.Message) {
+			// Keep track of duplicates
+			if _, seen := seenMessages[message]; seen {
+				prune()
+				return
+			}
+			seenMessages[message] = time.Now()
+
 			var payload Payload
-			if err := json.Unmarshal(msg.Payload(), &payload); err != nil {
+			if err := json.Unmarshal(message.Payload(), &payload); err != nil {
 				log.Err(err).Msg("Payload unmarshalling failed")
 				return
 			}
 
 			if payload.SenderCountry == payload.ReceiverCountry {
-				log.Debug().Str("topic", msg.Topic()).Any("payload", payload).Msg("Recording message within same country")
+				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message within same country")
 				local_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band).Inc()
 			} else if payload.SenderCountry == config.Country {
-				log.Debug().Str("topic", msg.Topic()).Any("payload", payload).Msg("Recording message sent from target country")
+				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message sent from target country")
 				sent_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band).Inc()
 			} else if payload.ReceiverCountry == config.Country {
-				log.Debug().Str("topic", msg.Topic()).Any("payload", payload).Msg("Recording message received in target country")
+				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message received in target country")
 				received_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band).Inc()
 			} else {
 				// Not sure how we got here
-				log.Debug().Str("topic", msg.Topic()).Any("payload", payload).Msg("No country matches, skipping")
+				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("No country matches, skipping")
 			}
 		})
 
@@ -97,4 +109,24 @@ func Subscribe(config Config) {
 	signal.Notify(sig, syscall.SIGTERM)
 	log.Info().Any("signal", <-sig).Msg("Signal caught, exiting")
 	client.Disconnect(1000)
+}
+
+// Clean up already-seen messages, occasionally
+func prune() {
+	if rand.Float32() < 0.35 {
+		return
+	}
+	log.Debug().Any("length", len(seenMessages)).Msg("Start pruning")
+
+	count := 0
+	now := time.Now()
+	// Assuming, perhaps naïvely, that there's no need for mutexing here
+	for key, seen := range seenMessages {
+		if now.Sub(seen) > time.Duration(time.Minute) {
+			delete(seenMessages, key)
+			count += 1
+		}
+	}
+
+	log.Debug().Any("length", len(seenMessages)).Int("pruned", count).Msg("Done pruning")
 }

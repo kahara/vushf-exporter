@@ -46,7 +46,7 @@ func Subscribe(config Config) {
 	seenMessages = make(map[mqtt.Message]time.Time)
 
 	opts.OnConnect = func(client mqtt.Client) {
-		log.Info().Str("server", config.Broker).Msg("Connecting")
+		log.Info().Str("server", config.Broker).Msg("Subscribing")
 
 		token := client.SubscribeMultiple(topics, func(client mqtt.Client, message mqtt.Message) {
 			// Keep track of duplicates

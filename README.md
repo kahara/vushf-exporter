@@ -23,6 +23,17 @@ pskreporter_spots_sent_total{country="224", band="23cm"} 23575
 pskreporter_spots_received_total{country="224", band="23cm"} 20196
 ```
 
+"Local" spots, i.e. ones which are sent and received in the same country, are
+recorded separately:
+
+```
+pskreporter_spots_local_total{band="6m",country="224"} 20071
+pskreporter_spots_local_total{band="2m",country="224"} 22653
+pskreporter_spots_local_total{band="4m",country="224"} 8543
+pskreporter_spots_local_total{band="70cm",country="224"} 19389
+pskreporter_spots_local_total{band="23cm",country="224"} 25922
+```
+
 The set of MQTT topics subscribed to with the default set of bands
 looks like:
 
@@ -42,17 +53,14 @@ pskr/filter/v2/23cm/+/+/+/+/+/+/224
 For details about PSK Reporter's MQTT service, see
 [here](http://mqtt.pskreporter.info/).
 
-"Local" spots, i.e. ones which are sent and received in the same country, are
-skipped.
-
 ## Configuration
 
 All settings go through environment variables, with following defaults:
 
-* MQTT_SERVER `mqtt.pskreporter.info:1883`
-* TARGET_COUNTRY `224`
+* BROKER `mqtt.pskreporter.info:1883`
 * BANDS `6m,4m,2m,70cm,23cm`
-* METRICS_ADDR `:9108`
+* COUNTRY `224`
+* ADDRPORT `:9108`
 
 ## Screenshot!
 

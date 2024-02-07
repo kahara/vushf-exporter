@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -27,7 +28,10 @@ type Payload struct {
 	Band             string `json:"b"`
 }
 
-var seenMessages map[mqtt.Message]time.Time
+var (
+	seenMessages map[mqtt.Message]time.Time
+	seenMutex    sync.Mutex
+)
 
 func Subscribe(config Config) {
 	opts := mqtt.NewClientOptions()
@@ -50,11 +54,14 @@ func Subscribe(config Config) {
 
 		token := client.SubscribeMultiple(topics, func(client mqtt.Client, message mqtt.Message) {
 			// Keep track of duplicates
+			seenMutex.Lock()
 			if _, seen := seenMessages[message]; seen {
+				seenMutex.Unlock()
 				prune()
 				return
 			}
 			seenMessages[message] = time.Now()
+			seenMutex.Unlock()
 
 			var payload Payload
 			if err := json.Unmarshal(message.Payload(), &payload); err != nil {
@@ -120,7 +127,8 @@ func prune() {
 
 	count := 0
 	now := time.Now()
-	// Assuming, perhaps naïvely, that there's no need for mutexing here
+	seenMutex.Lock()
+	defer seenMutex.Unlock()
 	for key, seen := range seenMessages {
 		if now.Sub(seen) > time.Duration(time.Minute) {
 			delete(seenMessages, key)

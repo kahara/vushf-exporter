@@ -62,6 +62,20 @@ All settings go through environment variables, with following defaults:
 * COUNTRY `224`
 * ADDRPORT `:9108`
 
+## An example
+
+A Docker composition is included, and it runs this repo, Prometheus, and Grafana.
+It can be started with:
+
+```console
+docker compose -f example-compose.yaml up
+```
+
+Then open [localhost:3000](http://localhost:3000), navigate to
+[Dashboards](http://localhost:3000/dashboards), and select
+[V/U/SHF latest in 224](http://localhost:3000/d/667c54c3-0f26-4f16-817b-9e9b04046633/v-u-shf-latest-in-224?orgId=1&refresh=1m).
+It may take some time before spots start appearing, depending.
+
 ## Screenshot!
 
 Top row from left to right shows totals for 90m, 3h, and 6h. Y-axis is

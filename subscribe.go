@@ -120,7 +120,7 @@ func Subscribe(config Config) {
 
 // Clean up already-seen messages, occasionally
 func prune() {
-	if rand.Float32() < 0.35 {
+	if rand.Float32() < 0.9 {
 		return
 	}
 	log.Debug().Any("length", len(seenMessages)).Msg("Start pruning")

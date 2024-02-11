@@ -11,16 +11,16 @@ bands by default, and we're looking at two directions for each, we'd have a
 total of ten counters for Prometheus to consume. For example:
 
 ```
-pskreporter_spots_sent_total{country="224", band="6m"} 5541
 pskreporter_spots_received_total{country="224", band="6m"} 31233
-pskreporter_spots_sent_total{country="224", band="4m"} 2204
 pskreporter_spots_received_total{country="224", band="4m"} 7767
-pskreporter_spots_sent_total{country="224", band="2m"} 10374
 pskreporter_spots_received_total{country="224", band="2m"} 11474
-pskreporter_spots_sent_total{country="224", band="70cm"} 26363
 pskreporter_spots_received_total{country="224", band="70cm"} 11786
-pskreporter_spots_sent_total{country="224", band="23cm"} 23575
 pskreporter_spots_received_total{country="224", band="23cm"} 20196
+pskreporter_spots_sent_total{country="224", band="6m"} 5541
+pskreporter_spots_sent_total{country="224", band="4m"} 2204
+pskreporter_spots_sent_total{country="224", band="2m"} 10374
+pskreporter_spots_sent_total{country="224", band="70cm"} 26363
+pskreporter_spots_sent_total{country="224", band="23cm"} 23575
 ```
 
 "Local" spots, i.e. ones which are sent and received in the same country, are
@@ -35,18 +35,18 @@ pskreporter_spots_local_total{band="23cm",country="224"} 25922
 ```
 
 The set of MQTT topics subscribed to with the default set of bands
-looks like:
+looks like (sent, received):
 
 ```
 pskr/filter/v2/6m/+/+/+/+/+/224/+
-pskr/filter/v2/6m/+/+/+/+/+/+/224
 pskr/filter/v2/4m/+/+/+/+/+/224/+
-pskr/filter/v2/4m/+/+/+/+/+/+/224
 pskr/filter/v2/2m/+/+/+/+/+/224/+
-pskr/filter/v2/2m/+/+/+/+/+/+/224
 pskr/filter/v2/70cm/+/+/+/+/+/224/+
-pskr/filter/v2/70cm/+/+/+/+/+/+/224
 pskr/filter/v2/23cm/+/+/+/+/+/224/+
+pskr/filter/v2/6m/+/+/+/+/+/+/224
+pskr/filter/v2/4m/+/+/+/+/+/+/224
+pskr/filter/v2/2m/+/+/+/+/+/+/224
+pskr/filter/v2/70cm/+/+/+/+/+/+/224
 pskr/filter/v2/23cm/+/+/+/+/+/+/224
 ```
 
@@ -64,7 +64,9 @@ All settings go through environment variables, with following defaults:
 
 ## Screenshot!
 
-Need to trick Grafana to use same color for each band in both panels, but
-anyway:
+Top row from left to right shows totals for 90m, 3h, and 6h. Y-axis is
+logarithmic, and the dashed line shows 50% waterline.
+
+Would be nice if bands were in frequency order, but that's hardly fatal:
 
 ![Screenshot](screenshot-1.png)

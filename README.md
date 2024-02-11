@@ -35,18 +35,18 @@ pskreporter_spots_local_total{band="23cm",country="224"} 25922
 ```
 
 The set of MQTT topics subscribed to with the default set of bands
-looks like:
+looks like (sent, received):
 
 ```
 pskr/filter/v2/6m/+/+/+/+/+/224/+
-pskr/filter/v2/6m/+/+/+/+/+/+/224
 pskr/filter/v2/4m/+/+/+/+/+/224/+
-pskr/filter/v2/4m/+/+/+/+/+/+/224
 pskr/filter/v2/2m/+/+/+/+/+/224/+
-pskr/filter/v2/2m/+/+/+/+/+/+/224
 pskr/filter/v2/70cm/+/+/+/+/+/224/+
-pskr/filter/v2/70cm/+/+/+/+/+/+/224
 pskr/filter/v2/23cm/+/+/+/+/+/224/+
+pskr/filter/v2/6m/+/+/+/+/+/+/224
+pskr/filter/v2/4m/+/+/+/+/+/+/224
+pskr/filter/v2/2m/+/+/+/+/+/+/224
+pskr/filter/v2/70cm/+/+/+/+/+/+/224
 pskr/filter/v2/23cm/+/+/+/+/+/+/224
 ```
 

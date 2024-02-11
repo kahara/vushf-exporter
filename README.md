@@ -64,7 +64,9 @@ All settings go through environment variables, with following defaults:
 
 ## Screenshot!
 
-Need to trick Grafana to use same color for each band in both panels, but
-anyway:
+Top row from left to right shows totals for 90m, 3h, and 6h. Y-axis is
+logarithmic, and the dashed line shows 50% waterline.
+
+Would be nice if bands were in frequency order, but that's hardly fatal:
 
 ![Screenshot](screenshot-1.png)

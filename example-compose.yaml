@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+  vushf-exporter:
+    restart: always
+    build:
+      context: .
+    environment:
+      # These are the defaults:
+      BROKER: 'mqtt.pskreporter.info:1883'
+      BANDS: '6m,4m,2m,70cm,23cm'
+      COUNTRY: '224'
+      ADDRPORT: ':9108'
+
+  prometheus:
+    restart: always
+    image: prom/prometheus:latest
+    depends_on:
+      - vushf-exporter
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./example/prometheus/:/etc/prometheus/
+    ports:
+      - '9090:9090'
+
+  grafana:
+    restart: always
+    image: grafana/grafana:latest
+    depends_on:
+      - prometheus
+    volumes:
+      - ./example/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./example/grafana/provisioning/datasources/prometheus.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml
+      - ./example/grafana/provisioning/dashboards/home.yaml:/etc/grafana/provisioning/dashboards/home.yaml
+      - ./example/grafana/provisioning/dashboards/home.json:/var/lib/grafana/dashboards/home.json
+    environment:
+      GF_USERS_DEFAULT_THEME: light
+    ports:
+      - '3000:3000'

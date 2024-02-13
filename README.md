@@ -6,7 +6,11 @@ and aggregate them for Prometheus' consumption.
 In this context, "V/U/SHF" is to be interpreted as 6m, 4m, 2m, 70cm, and 23cm,
 and right now we're only interested in spot counts in the short term, like a
 few hours or so. No further filtering is performed, the only labels added are
-`country` and `band`, and all modes are considered. Given that there are five
+`country` and `band`, and all modes are considered. The exporter can of course
+be configured to consume whatever bands one wants and
+[PSK Reporter](https://pskreporter.info/) provides, not just V, U, and SHF.
+
+Given that there are five
 bands by default, and we're looking at two directions for each, we'd have a
 total of ten counters for Prometheus to consume. For example:
 
@@ -76,11 +80,18 @@ Then open [localhost:3000](http://localhost:3000), navigate to
 [V/U/SHF latest in 224](http://localhost:3000/d/667c54c3-0f26-4f16-817b-9e9b04046633/v-u-shf-latest-in-224?orgId=1&refresh=1m).
 It may take some time before spots start appearing, depending.
 
-## Screenshot!
+## Screenshots!
 
 Top row from left to right shows totals for 90m, 3h, and 6h. Y-axis is
-logarithmic, and the dashed line shows 50% waterline.
+logarithmic, and the dashed line shows the 50% waterline. Would be nice if bands were
+in frequency order, but that's hardly fatal:
 
-Would be nice if bands were in frequency order, but that's hardly fatal:
+![Screenshot](screenshot-36h-70cm-heating.png)
 
-![Screenshot](screenshot-1.png)
+This one shows some daily aliveness on 6m and 2m, plus a
+[70cm Nordic Activity Contest](https://oh6zz.com/2024/rules/NAC_2024.htm),
+which started at 18UTC, still going on. From the "Local" numbers we can perhaps
+come to the conclusion that on average, stations worked other modes for the
+first hour or so before switching to digimodes (or more accurately,
+[a mode](https://en.wikipedia.org/wiki/FT8)). And that propagation across
+country borders is happening.

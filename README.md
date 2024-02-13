@@ -11,8 +11,9 @@ be configured to consume whatever bands one wants and
 [PSK Reporter](https://pskreporter.info/) provides, not just V, U, and SHF.
 
 Given that there are five
-bands by default, and we're looking at two directions for each, we'd have a
-total of ten counters for Prometheus to consume. For example:
+bands by default, and we're looking at two directions for each, we'd have the
+following counters for Prometheus to consume. Here, "received" spots are
+_received in_ `country`, "sent" spots are _sent from_ `country`:
 
 ```
 pskreporter_spots_received_total{country="224", band="6m"} 31233
@@ -27,8 +28,8 @@ pskreporter_spots_sent_total{country="224", band="70cm"} 26363
 pskreporter_spots_sent_total{country="224", band="23cm"} 23575
 ```
 
-"Local" spots, i.e. ones which are sent and received in the same country, are
-recorded separately:
+"Local" spots, i.e. ones which are sent and received in the same `country`,
+are recorded separately:
 
 ```
 pskreporter_spots_local_total{band="6m",country="224"} 20071
@@ -95,3 +96,12 @@ come to the conclusion that on average, stations worked other modes for the
 first hour or so before switching to digimodes (or more accurately,
 [a mode](https://en.wikipedia.org/wiki/FT8)). And that propagation across
 country borders is happening.
+
+![Screenshot](screenshot-144h-70cm-cooling.png)
+
+Here the 70cm contest is over, and things have cooled down somewhat. Previous week's
+6m NAC is clearly visible. During the beginning of that 6m contest, the Local spot
+count increased more sharply compared to Received and Sent ones, from which we could
+(again, perhaps!) infer that some stations in southern Finland initially had their
+beams pointing North, then rotated towards West and South after working other OH
+stations.

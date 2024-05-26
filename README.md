@@ -58,6 +58,21 @@ pskr/filter/v2/23cm/+/+/+/+/+/+/224
 For details about PSK Reporter's MQTT service, see
 [here](http://mqtt.pskreporter.info/).
 
+## Building
+
+A (hopefully!) up-to-date image is available on [Docker Hub](https://hub.docker.com/repository/docker/jonikahara/vushf-exporter/).
+
+To build and push a multi-platform (amd64, arm64) image, proceed along these lines:
+
+```console
+# https://docs.docker.com/build/building/multi-platform/#qemu-without-docker-desktop
+docker run --privileged --rm tonistiigi/binfmt --install all
+
+# https://docs.docker.com/build/building/multi-platform/#getting-started
+docker buildx create --name vushf-builder --bootstrap --use
+docker buildx build --push --platform linux/arm64,linux/amd64 --tag jonikahara/vushf-exporter:latest .
+```
+
 ## Configuration
 
 All settings go through environment variables, with following defaults:

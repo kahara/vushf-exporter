@@ -33,7 +33,7 @@ var (
 	seenMutex    sync.Mutex
 )
 
-func Subscribe(config Config) {
+func Subscribe(config Config, spots chan<- Payload) {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(config.Broker)
 	opts.SetKeepAlive(10 * time.Second)
@@ -68,6 +68,8 @@ func Subscribe(config Config) {
 				log.Err(err).Msg("Payload unmarshalling failed")
 				return
 			}
+
+			spots <- payload
 
 			if payload.SenderCountry == payload.ReceiverCountry {
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message within same country")

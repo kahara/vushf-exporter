@@ -73,6 +73,10 @@ docker buildx create --name vushf-builder --bootstrap --use
 docker buildx build --push --platform linux/arm64,linux/amd64 --tag jonikahara/vushf-exporter:latest .
 ```
 
+## Spotlog
+
+FIXME explain this
+
 ## Configuration
 
 All settings go through environment variables, with following defaults:
@@ -80,7 +84,8 @@ All settings go through environment variables, with following defaults:
 * BROKER `mqtt.pskreporter.info:1883`
 * BANDS `6m,4m,2m,70cm,23cm`
 * COUNTRY `224`
-* ADDRPORT `:9108`
+* METRICS_ADDRPORT `:9108`
+* SPOTLOG_ADDRPORT `:8080`
 
 ## An example
 

@@ -8,18 +8,20 @@ import (
 )
 
 const (
-	DefaultBands    = "6m,4m,2m,70cm,23cm"
-	DefaultCountry  = 224 // Finland; see https://www.adif.org/304/ADIF_304.htm#Country_Codes
-	DefaultBroker   = "mqtt.pskreporter.info:1883"
-	DefaultAddrPort = ":9108"
+	DefaultBands           = "6m,4m,2m,70cm,23cm"
+	DefaultCountry         = 224 // Finland; see https://www.adif.org/304/ADIF_304.htm#Country_Codes
+	DefaultBroker          = "mqtt.pskreporter.info:1883"
+	DefaultMetricsAddrPort = ":9108"
+	DefaultSpotlogAddrPort = ":8080"
 )
 
 type Config struct {
-	Broker   string
-	Bands    []string
-	Country  int
-	Topics   []string
-	AddrPort string
+	Broker          string
+	Bands           []string
+	Country         int
+	Topics          []string
+	MetricsAddrPort string
+	SpotlogAddrPort string
 }
 
 func NewConfig() *Config {
@@ -57,11 +59,19 @@ func NewConfig() *Config {
 	}
 
 	// Metrics' address
-	addrPort := os.Getenv("ADDRPORT")
-	if addrPort == "" {
-		config.AddrPort = DefaultAddrPort
+	metricsAddrPort := os.Getenv("METRICS_ADDRPORT")
+	if metricsAddrPort == "" {
+		config.MetricsAddrPort = DefaultMetricsAddrPort
 	} else {
-		config.AddrPort = addrPort
+		config.MetricsAddrPort = metricsAddrPort
+	}
+
+	// Spotlog address
+	spotlogAddrPort := os.Getenv("SPOTLOG_ADDRPORT")
+	if spotlogAddrPort == "" {
+		config.SpotlogAddrPort = DefaultSpotlogAddrPort
+	} else {
+		config.SpotlogAddrPort = spotlogAddrPort
 	}
 
 	return &config

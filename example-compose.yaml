@@ -10,7 +10,8 @@ services:
       BROKER: 'mqtt.pskreporter.info:1883'
       BANDS: '6m,4m,2m,70cm,23cm'
       COUNTRY: '224'
-      ADDRPORT: ':9108'
+      METRICS_ADDRPORT: ':9108'
+      SPOTLOG_ADDRPORT: ':8080'
 
   prometheus:
     restart: always

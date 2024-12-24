@@ -35,12 +35,12 @@ func NewConfig() *Config {
 		config.Bands = strings.Split(bands, ",")
 	}
 
-	// Target country
-	targetCountry := os.Getenv("COUNTRY")
-	if targetCountry == "" {
+	// Country
+	country := os.Getenv("COUNTRY")
+	if country == "" {
 		config.Country = DefaultCountry
 	} else {
-		c, _ := strconv.Atoi(targetCountry)
+		c, _ := strconv.Atoi(country)
 		config.Country = c
 	}
 

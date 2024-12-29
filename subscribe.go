@@ -19,6 +19,7 @@ type Payload struct {
 	Mode             string `json:"md"`
 	Report           int    `json:"rp"`
 	Time             uint64 `json:"t"`
+	UTC              string `json:"utc,omitempty"`
 	SenderCallsign   string `json:"sc"`
 	SenderLocator    string `json:"sl"`
 	ReceiverCallsign string `json:"rc"`
@@ -68,6 +69,7 @@ func Subscribe(config Config, spots chan<- Payload) {
 				log.Err(err).Msg("Payload unmarshalling failed")
 				return
 			}
+			payload.UTC = time.Unix(int64(payload.Time), 0).UTC().Format(time.RFC3339)
 
 			spots <- payload
 

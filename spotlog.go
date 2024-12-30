@@ -137,6 +137,9 @@ const pageHtml = `<!DOCTYPE html>
 		<meta charset="UTF-8">
 		<title>Spotlog</title>
 		<style>
+		body {
+			font-family: monospace;
+		}
 		table {
 			border: 1px solid #999999;
 			table-layout: auto;
@@ -186,4 +189,4 @@ const pageHtml = `<!DOCTYPE html>
 </html>
 `
 
-const tablerowHtml = `<tr><td>{{.UTC}}</td><td>{{.Frequency}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`
+const tablerowHtml = `<tr><td>{{.RFC3339}}</td><td>{{.Mhz}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`

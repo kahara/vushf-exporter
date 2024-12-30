@@ -14,19 +14,20 @@ import (
 )
 
 type Payload struct {
-	SequenceNumber   uint64 `json:"sq"`
-	Frequency        int    `json:"f"`
-	Mode             string `json:"md"`
-	Report           int    `json:"rp"`
-	Time             uint64 `json:"t"`
-	UTC              string `json:"utc,omitempty"`
-	SenderCallsign   string `json:"sc"`
-	SenderLocator    string `json:"sl"`
-	ReceiverCallsign string `json:"rc"`
-	ReceiverLocator  string `json:"rl"`
-	SenderCountry    int    `json:"sa"`
-	ReceiverCountry  int    `json:"ra"`
-	Band             string `json:"b"`
+	SequenceNumber   uint64  `json:"sq"`
+	Frequency        int     `json:"f"`
+	Mhz              float64 `json:"mhz,omitempty"`
+	Mode             string  `json:"md"`
+	Report           int     `json:"rp"`
+	Time             uint64  `json:"t"`
+	RFC3339          string  `json:"utc,omitempty"`
+	SenderCallsign   string  `json:"sc"`
+	SenderLocator    string  `json:"sl"`
+	ReceiverCallsign string  `json:"rc"`
+	ReceiverLocator  string  `json:"rl"`
+	SenderCountry    int     `json:"sa"`
+	ReceiverCountry  int     `json:"ra"`
+	Band             string  `json:"b"`
 }
 
 var (
@@ -69,7 +70,8 @@ func Subscribe(config Config, spots chan<- Payload) {
 				log.Err(err).Msg("Payload unmarshalling failed")
 				return
 			}
-			payload.UTC = time.Unix(int64(payload.Time), 0).UTC().Format(time.RFC3339)
+			payload.RFC3339 = time.Unix(int64(payload.Time), 0).UTC().Format(time.RFC3339)
+			payload.Mhz = float64(payload.Frequency) / 1000000
 
 			spots <- payload
 

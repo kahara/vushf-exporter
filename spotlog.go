@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"sort"
 	"strings"
 	"text/template"
 )
@@ -13,9 +14,13 @@ import (
 func Spotlog(addrPort string, spots <-chan Payload) {
 	go serve(addrPort)
 
+	// FIXME implement a window in time during which spots are processed in batches
 	for spot := range spots {
 		log.Debug().Any("payload", spot).Msg("Spotlogging")
 		Spots = append(Spots, spot)
+		sort.Slice(Spots, func(i, j int) bool {
+			return Spots[i].Time < Spots[j].Time
+		})
 	}
 }
 
@@ -74,11 +79,10 @@ func spotlogHandler(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		var tablerows []string
-		for _, spot := range Spots {
+		for _, spot := range slices.Backward(Spots) {
 			if !filterSpot(filter, spot) {
 				continue
 			}
-
 			var row bytes.Buffer
 			if err := tablerowTemplate.Execute(&row, spot); err != nil {
 				log.Fatal().Err(err).Msg("Could not render table row template")

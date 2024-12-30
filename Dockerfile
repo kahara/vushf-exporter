@@ -1,4 +1,4 @@
-FROM golang:1.21.2-bullseye as build
+FROM golang:1.23.4-bullseye as build
 
 RUN mkdir /workdir
 COPY go.* /workdir/

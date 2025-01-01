@@ -2,29 +2,20 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"text/template"
+	"time"
 )
 
-func Spotlog(addrPort string, spots <-chan Payload) {
-	go serve(addrPort)
-
-	// FIXME implement a window in time during which spots are processed in batches, maybe
-	for spot := range spots {
-		log.Debug().Any("payload", spot).Msg("Spotlogging")
-		Spots = append(Spots, spot)
-		sort.Slice(Spots, func(i, j int) bool {
-			return Spots[i].Time < Spots[j].Time
-		})
-	}
-}
-
-var Spots []Payload
+var Spots []*Payload
+var SpotLock sync.Mutex
 
 type Filter struct {
 	Enabled  bool
@@ -38,6 +29,30 @@ var (
 	pageTemplate     *template.Template
 	tablerowTemplate *template.Template
 )
+
+func Spotlog(addrPort string, spots <-chan Payload) {
+	go serve(addrPort)
+
+	// FIXME implement a window in time during which spots are processed in batches, maybe
+	for spot := range spots {
+		log.Debug().Any("payload", spot).Msg("Spotlogging")
+		SpotLock.Lock()
+		Spots = append(Spots, &spot)
+		SpotLock.Unlock()
+	}
+}
+
+func GetSpots() []*Payload {
+	SpotLock.Lock()
+	sort.Slice(Spots, func(i, j int) bool {
+		return Spots[i].Time < Spots[j].Time
+	})
+	spots := make([]*Payload, len(Spots))
+	copy(spots, Spots)
+	SpotLock.Unlock()
+
+	return spots
+}
 
 func serve(addrPort string) {
 	var err error
@@ -62,13 +77,14 @@ func serve(addrPort string) {
 func spotlogHandler(writer http.ResponseWriter, request *http.Request) {
 	filter := NewFilter(request)
 
-	if request.URL.Path == "/" {
+	if request.Method == http.MethodGet && request.URL.Path == "/" {
 		log.Debug().Msg("Serving a page")
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		var tablerows []string
-		for _, spot := range slices.Backward(Spots) {
-			if filter.Enabled && !filterSpot(filter, spot) {
+		for _, spot := range slices.Backward(GetSpots()) {
+			log.Debug().Any("spot", spot).Send()
+			if filter.Enabled && !filterSpot(filter, *spot) {
 				continue
 			}
 			var row bytes.Buffer
@@ -87,12 +103,55 @@ func spotlogHandler(writer http.ResponseWriter, request *http.Request) {
 		}); err != nil {
 			log.Fatal().Err(err).Msg("Failed to render page template")
 		}
-	} else if request.URL.Path == "/stream" || request.URL.Path == "/stream/" {
+	} else if request.Method == http.MethodGet && (request.URL.Path == "/stream" || request.URL.Path == "/stream/") {
 		log.Debug().Msg("Streaming spots")
 		writer.Header().Set("Content-Type", "text/event-stream")
 		writer.Header().Set("Cache-Control", "no-cache")
 		writer.Header().Set("Connection", "keep-alive")
-		// "data: xxx\n\n"
+
+		SpotLock.Lock()
+		// This could cause occasional misses
+		seen := Spots[len(Spots)-1].Time
+		SpotLock.Unlock()
+
+		keepalive := time.NewTicker(25 * time.Second)
+		sendUpdates := time.NewTicker(3 * time.Second)
+
+		for {
+			select {
+			case <-keepalive.C:
+				io.WriteString(writer, ": keepalive\n\n")
+			case <-sendUpdates.C:
+				var updates []string
+				spots := GetSpots()
+
+				for _, spot := range slices.Backward(spots) {
+					if spot.Time <= seen {
+						break
+					}
+
+					if filter.Enabled && !filterSpot(filter, *spot) {
+						continue
+					}
+					var row bytes.Buffer
+					if err := tablerowTemplate.Execute(&row, spot); err != nil {
+						log.Fatal().Err(err).Msg("Could not render table row template")
+					}
+					updates = append(updates, fmt.Sprintf("data: %s\n\n", row.String()))
+				}
+
+				seen = spots[len(spots)-1].Time
+
+				for _, update := range slices.Backward(updates) {
+					io.WriteString(writer, update)
+				}
+			}
+
+			// FIXME Is this safe?
+			if flusher, ok := writer.(http.Flusher); ok {
+				flusher.Flush()
+			}
+		}
 	} else {
 		writer.WriteHeader(http.StatusTeapot)
 		io.WriteString(writer, "¯\\_(?)_/¯\n")
@@ -188,11 +247,12 @@ const pageHtml = `<!DOCTYPE html>
 		<table>
 			<thead>
 				<tr>
-					<th>UTC</th>
-					<th>Frequency</th>
+					<th>Time</th>
 					<th>Band</th>
 					<th>Mode</th>
 					<th>Report</th>
+					<th>Distance</th>
+					<th>Frequency</th>
 					<th>Tx callsign</th>
 					<th>Tx locator</th>
 					<th>Tx country</th>
@@ -208,4 +268,4 @@ const pageHtml = `<!DOCTYPE html>
 </html>
 `
 
-const tablerowHtml = `<tr><td>{{.RFC3339}}</td><td>{{.Mhz}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`
+const tablerowHtml = `<tr><td>{{.RFC3339}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.Distance}}</td><td>{{.Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`

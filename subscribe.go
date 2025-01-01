@@ -3,6 +3,9 @@ package main
 import (
 	"encoding/json"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/logocomune/maidenhead"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geo"
 	"github.com/rs/zerolog/log"
 	"math/rand"
 	"os"
@@ -21,6 +24,7 @@ type Payload struct {
 	Report           int     `json:"rp"`
 	Time             uint64  `json:"t"`
 	RFC3339          string  `json:"utc,omitempty"`
+	Distance         int64   `json:"distance,omitempty"`
 	SenderCallsign   string  `json:"sc"`
 	SenderLocator    string  `json:"sl"`
 	ReceiverCallsign string  `json:"rc"`
@@ -72,6 +76,11 @@ func Subscribe(config Config, spots chan<- Payload) {
 			}
 			payload.RFC3339 = time.Unix(int64(payload.Time), 0).UTC().Format(time.RFC3339)
 			payload.Mhz = float64(payload.Frequency) / 1000000
+
+			// Calculate distance between stations, best effort
+			senderLatitude, senderLongitude, _ := maidenhead.GridCenter(payload.SenderLocator)
+			receiverLatitude, receiverLongitude, _ := maidenhead.GridCenter(payload.ReceiverLocator)
+			payload.Distance = int64(geo.DistanceHaversine(orb.Point{senderLongitude, senderLatitude}, orb.Point{receiverLongitude, receiverLatitude}) / 1000)
 
 			spots <- payload
 

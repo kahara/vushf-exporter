@@ -14,7 +14,7 @@ import (
 func Spotlog(addrPort string, spots <-chan Payload) {
 	go serve(addrPort)
 
-	// FIXME implement a window in time during which spots are processed in batches
+	// FIXME implement a window in time during which spots are processed in batches, maybe
 	for spot := range spots {
 		log.Debug().Any("payload", spot).Msg("Spotlogging")
 		Spots = append(Spots, spot)
@@ -27,6 +27,7 @@ func Spotlog(addrPort string, spots <-chan Payload) {
 var Spots []Payload
 
 type Filter struct {
+	Enabled  bool
 	Locator  string
 	Callsign string
 	Bands    []string
@@ -59,20 +60,7 @@ func serve(addrPort string) {
 }
 
 func spotlogHandler(writer http.ResponseWriter, request *http.Request) {
-	filter := Filter{
-		Locator:  request.URL.Query().Get("locator"),
-		Callsign: request.URL.Query().Get("callsign"),
-		Bands:    strings.Split(request.URL.Query().Get("bands"), ","),
-		Modes:    strings.Split(request.URL.Query().Get("modes"), ","),
-	}
-	if filter.Bands[0] == "" {
-		filter.Bands = nil
-	}
-	if filter.Modes[0] == "" {
-		filter.Modes = nil
-	}
-
-	log.Debug().Any("filter", filter).Msg("Filter filters")
+	filter := NewFilter(request)
 
 	if request.URL.Path == "/" {
 		log.Debug().Msg("Serving a page")
@@ -80,7 +68,7 @@ func spotlogHandler(writer http.ResponseWriter, request *http.Request) {
 
 		var tablerows []string
 		for _, spot := range slices.Backward(Spots) {
-			if !filterSpot(filter, spot) {
+			if filter.Enabled && !filterSpot(filter, spot) {
 				continue
 			}
 			var row bytes.Buffer
@@ -109,6 +97,33 @@ func spotlogHandler(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusTeapot)
 		io.WriteString(writer, "¯\\_(?)_/¯\n")
 	}
+}
+
+func NewFilter(request *http.Request) Filter {
+	filter := Filter{
+		Enabled:  false,
+		Locator:  request.URL.Query().Get("locator"),
+		Callsign: request.URL.Query().Get("callsign"),
+		Bands:    strings.Split(request.URL.Query().Get("bands"), ","),
+		Modes:    strings.Split(request.URL.Query().Get("modes"), ","),
+	}
+	if filter.Locator != "" || filter.Callsign != "" {
+		filter.Enabled = true
+	}
+	if filter.Bands[0] == "" {
+		filter.Bands = nil
+	} else {
+		filter.Enabled = true
+	}
+	if filter.Modes[0] == "" {
+		filter.Modes = nil
+	} else {
+		filter.Enabled = true
+	}
+
+	log.Debug().Any("filter", filter).Msg("Filter filters")
+
+	return filter
 }
 
 func filterSpot(filter Filter, spot Payload) bool {

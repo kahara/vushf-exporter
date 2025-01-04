@@ -46,8 +46,8 @@ func Spotlog(addrPort string, spots <-chan Payload) {
 		SpotLock.Unlock()
 
 		StreamLock.Lock()
-		for _, streamer := range Streamers {
-			streamer <- spot
+		for key, _ := range Streamers {
+			Streamers[key] <- spot
 		}
 		StreamLock.Unlock()
 	}
@@ -134,6 +134,7 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/event-stream")
 	writer.Header().Set("Cache-Control", "no-cache")
 	writer.Header().Set("Connection", "keep-alive")
+	io.WriteString(writer, ": keepalive\n\n")
 
 	keepalive := time.NewTicker(25 * time.Second)
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"io"
+	"math/rand"
 	"net/http"
 	"slices"
 	"sort"
@@ -14,8 +15,12 @@ import (
 	"time"
 )
 
-var Spots []*Payload
-var SpotLock sync.Mutex
+var (
+	Spots      []*Payload
+	SpotLock   sync.Mutex
+	Streamers  map[uint64]chan Payload
+	StreamLock sync.Mutex
+)
 
 type Filter struct {
 	Enabled  bool
@@ -33,12 +38,17 @@ var (
 func Spotlog(addrPort string, spots <-chan Payload) {
 	go serve(addrPort)
 
-	// FIXME implement a window in time during which spots are processed in batches, maybe
 	for spot := range spots {
 		log.Debug().Any("payload", spot).Msg("Spotlogging")
 		SpotLock.Lock()
 		Spots = append(Spots, &spot)
 		SpotLock.Unlock()
+
+		StreamLock.Lock()
+		for _, streamer := range Streamers {
+			streamer <- spot
+		}
+		StreamLock.Unlock()
 	}
 }
 
@@ -70,91 +80,73 @@ func serve(addrPort string) {
 	log.Debug().Any("page", pageTemplate).Any("tablerow", tablerowTemplate).Msg("Templates parsed")
 
 	spotlogMux := http.NewServeMux()
-	spotlogMux.HandleFunc("/", spotlogHandler)
+	spotlogMux.HandleFunc("/", pageHandler)
+	spotlogMux.HandleFunc("/stream", streamHandler)
 	log.Fatal().Err(http.ListenAndServe(":8080", spotlogMux)).Send()
 }
 
-func spotlogHandler(writer http.ResponseWriter, request *http.Request) {
+func pageHandler(writer http.ResponseWriter, request *http.Request) {
+	log.Debug().Msg("Serving a page")
+
 	filter := NewFilter(request)
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	if request.Method == http.MethodGet && request.URL.Path == "/" {
-		log.Debug().Msg("Serving a page")
-		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var tablerows []string
+	for _, spot := range slices.Backward(GetSpots()) {
+		log.Debug().Any("spot", spot).Send()
+		if filter.Enabled && !filterSpot(filter, *spot) {
+			continue
+		}
+		var row bytes.Buffer
+		if err := tablerowTemplate.Execute(&row, spot); err != nil {
+			log.Fatal().Err(err).Msg("Could not render table row template")
+		}
+		tablerows = append(tablerows, row.String())
+	}
 
-		var tablerows []string
-		for _, spot := range slices.Backward(GetSpots()) {
-			log.Debug().Any("spot", spot).Send()
-			if filter.Enabled && !filterSpot(filter, *spot) {
-				continue
-			}
+	if err := pageTemplate.Execute(writer, struct {
+		Filter    Filter
+		Tablerows []string
+	}{
+		Filter:    filter,
+		Tablerows: tablerows,
+	}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to render page template")
+	}
+}
+
+func streamHandler(writer http.ResponseWriter, request *http.Request) {
+	id := rand.Uint64()
+	spots := make(chan Payload, 100)
+
+	StreamLock.Lock()
+	Streamers[id] = spots
+	StreamLock.Unlock()
+
+	defer func() {
+		StreamLock.Lock()
+		delete(Streamers, id)
+		StreamLock.Unlock()
+	}()
+
+	log.Debug().Msg("Streaming spots")
+	writer.Header().Set("Content-Type", "text/event-stream")
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.Header().Set("Connection", "keep-alive")
+
+	keepalive := time.NewTicker(25 * time.Second)
+
+	for {
+		select {
+		case <-keepalive.C:
+			io.WriteString(writer, ": keepalive\n\n")
+		case spot := <-spots:
 			var row bytes.Buffer
 			if err := tablerowTemplate.Execute(&row, spot); err != nil {
 				log.Fatal().Err(err).Msg("Could not render table row template")
 			}
-			tablerows = append(tablerows, row.String())
+			io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
 		}
-
-		if err := pageTemplate.Execute(writer, struct {
-			Filter    Filter
-			Tablerows []string
-		}{
-			Filter:    filter,
-			Tablerows: tablerows,
-		}); err != nil {
-			log.Fatal().Err(err).Msg("Failed to render page template")
-		}
-	} else if request.Method == http.MethodGet && (request.URL.Path == "/stream" || request.URL.Path == "/stream/") {
-		log.Debug().Msg("Streaming spots")
-		writer.Header().Set("Content-Type", "text/event-stream")
-		writer.Header().Set("Cache-Control", "no-cache")
-		writer.Header().Set("Connection", "keep-alive")
-
-		SpotLock.Lock()
-		// This could cause occasional misses
-		seen := Spots[len(Spots)-1].Time
-		SpotLock.Unlock()
-
-		keepalive := time.NewTicker(25 * time.Second)
-		sendUpdates := time.NewTicker(3 * time.Second)
-
-		for {
-			select {
-			case <-keepalive.C:
-				io.WriteString(writer, ": keepalive\n\n")
-			case <-sendUpdates.C:
-				var updates []string
-				spots := GetSpots()
-
-				for _, spot := range slices.Backward(spots) {
-					if spot.Time <= seen {
-						break
-					}
-
-					if filter.Enabled && !filterSpot(filter, *spot) {
-						continue
-					}
-					var row bytes.Buffer
-					if err := tablerowTemplate.Execute(&row, spot); err != nil {
-						log.Fatal().Err(err).Msg("Could not render table row template")
-					}
-					updates = append(updates, fmt.Sprintf("data: %s\n\n", row.String()))
-				}
-
-				seen = spots[len(spots)-1].Time
-
-				for _, update := range slices.Backward(updates) {
-					io.WriteString(writer, update)
-				}
-			}
-
-			// FIXME Is this safe?
-			if flusher, ok := writer.(http.Flusher); ok {
-				flusher.Flush()
-			}
-		}
-	} else {
-		writer.WriteHeader(http.StatusTeapot)
-		io.WriteString(writer, "¯\\_(?)_/¯\n")
 	}
 }
 
@@ -247,6 +239,7 @@ const pageHtml = `<!DOCTYPE html>
 		<table>
 			<thead>
 				<tr>
+					<th>Sequence</th>
 					<th>Time</th>
 					<th>Band</th>
 					<th>Mode</th>
@@ -268,4 +261,4 @@ const pageHtml = `<!DOCTYPE html>
 </html>
 `
 
-const tablerowHtml = `<tr><td>{{.RFC3339}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.Distance}}</td><td>{{.Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`
+const tablerowHtml = `<tr><td>{{.SequenceNumber}}</td><td>{{.RFC3339}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.Distance}}</td><td>{{.Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`

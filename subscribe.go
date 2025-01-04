@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/logocomune/maidenhead"
 	"github.com/paulmach/orb"
@@ -18,6 +19,7 @@ import (
 
 type Payload struct {
 	SequenceNumber   uint64  `json:"sq"`
+	SequenceHex      string  `json:"sequenceHex,omitempty"`
 	Frequency        int     `json:"f"`
 	Mhz              float64 `json:"mhz,omitempty"`
 	Mode             string  `json:"md"`
@@ -74,6 +76,7 @@ func Subscribe(config Config, spots chan<- Payload) {
 				log.Err(err).Msg("Payload unmarshalling failed")
 				return
 			}
+			payload.SequenceHex = fmt.Sprintf("%X", payload.SequenceNumber)
 			payload.RFC3339 = time.Unix(int64(payload.Time), 0).UTC().Format(time.RFC3339)
 			payload.Mhz = float64(payload.Frequency) / 1000000
 

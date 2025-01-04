@@ -36,6 +36,7 @@ var (
 )
 
 func Spotlog(addrPort string, spots <-chan Payload) {
+	Streamers = make(map[uint64]chan Payload)
 	go serve(addrPort)
 
 	for spot := range spots {
@@ -140,7 +141,7 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 		select {
 		case <-keepalive.C:
 			io.WriteString(writer, ": keepalive\n\n")
-		case spot := <-spots:
+		case spot := <-Streamers[id]:
 			var row bytes.Buffer
 			if err := tablerowTemplate.Execute(&row, spot); err != nil {
 				log.Fatal().Err(err).Msg("Could not render table row template")
@@ -254,11 +255,22 @@ const pageHtml = `<!DOCTYPE html>
 					<th>Rx country</th>
 				</tr>
 			</thead>
-			<tbody>
+			<tbody id="spots">
 				{{range .Tablerows}}{{ . }}{{end}}
 			</tbody>
+
+		<script>
+		const table = document.getElementById('spots');
+		const spots = new EventSource('/stream');
+		spots.onmessage = function(spot) {
+			console.log(spot);
+			const template = document.createElement('template');
+			template.innerHTML = spot.data;
+			table.prepend(template.content.firstElementChild);
+		};
+		</script>
 	</body>
 </html>
 `
 
-const tablerowHtml = `<tr><td>{{.SequenceNumber}}</td><td>{{.RFC3339}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.Distance}}</td><td>{{.Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`
+const tablerowHtml = `<tr><td>{{.SequenceHex}}</td><td>{{.RFC3339}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.Distance}}</td><td>{{.Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`

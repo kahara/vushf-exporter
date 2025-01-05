@@ -81,8 +81,8 @@ func serve(addrPort string) {
 	log.Debug().Any("page", pageTemplate).Any("tablerow", tablerowTemplate).Msg("Templates parsed")
 
 	spotlogMux := http.NewServeMux()
-	spotlogMux.HandleFunc("/", pageHandler)
-	spotlogMux.HandleFunc("/stream", streamHandler)
+	spotlogMux.HandleFunc("GET /", pageHandler)
+	spotlogMux.HandleFunc("GET /stream/", streamHandler)
 	log.Fatal().Err(http.ListenAndServe(":8080", spotlogMux)).Send()
 }
 
@@ -117,6 +117,9 @@ func pageHandler(writer http.ResponseWriter, request *http.Request) {
 }
 
 func streamHandler(writer http.ResponseWriter, request *http.Request) {
+	log.Debug().Msg("Streaming spots")
+	filter := NewFilter(request)
+
 	id := rand.Uint64()
 	spots := make(chan Payload, 100)
 
@@ -130,7 +133,6 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 		StreamLock.Unlock()
 	}()
 
-	log.Debug().Msg("Streaming spots")
 	writer.Header().Set("Content-Type", "text/event-stream")
 	writer.Header().Set("Cache-Control", "no-cache")
 	writer.Header().Set("Connection", "keep-alive")
@@ -143,6 +145,9 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 		case <-keepalive.C:
 			io.WriteString(writer, ": keepalive\n\n")
 		case spot := <-Streamers[id]:
+			if filter.Enabled && !filterSpot(filter, spot) {
+				continue
+			}
 			var row bytes.Buffer
 			if err := tablerowTemplate.Execute(&row, spot); err != nil {
 				log.Fatal().Err(err).Msg("Could not render table row template")
@@ -262,7 +267,7 @@ const pageHtml = `<!DOCTYPE html>
 
 		<script>
 		const table = document.getElementById('spots');
-		const spots = new EventSource('/stream');
+		const spots = new EventSource('/stream/' + window.location.search);
 		spots.onmessage = function(spot) {
 			console.log(spot);
 			const template = document.createElement('template');

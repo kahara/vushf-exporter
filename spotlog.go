@@ -50,6 +50,21 @@ func Spotlog(addrPort string, spots <-chan Payload, retention time.Duration) {
 			Streamers[key] <- spot
 		}
 		StreamLock.Unlock()
+
+		// Prune occasionally
+		if rand.Float32() > 0.9 {
+			log.Debug().Dur("retention", retention).Msg("Pruning spotlog spots")
+			retainedSpots := make([]*Payload, 0)
+			cutoff := uint64(time.Now().UTC().Add(-retention).Unix())
+			SpotLock.Lock()
+			for _, retained := range Spots {
+				if retained.Time >= cutoff {
+					retainedSpots = append(retainedSpots, retained)
+				}
+			}
+			copy(Spots, retainedSpots)
+			SpotLock.Unlock()
+		}
 	}
 }
 
@@ -255,6 +270,7 @@ const pageHtml = `<!DOCTYPE html>
 		<p>
 			Data sourced from N1DQ's <a href="https://pskreporter.info/">PSK Reporter</a>,
 			over M0LTE's <a href="http://mqtt.pskreporter.info/">MQTT feed</a>. Thanks!
+			This is <a href="https://github.com/kahara/vushf-exporter">kahara/vushf-exporter</a> by OH2EWL.
 		</p>
 
 		{{if .Filter.Enabled}}

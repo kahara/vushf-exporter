@@ -279,25 +279,43 @@ const pageHtml = `<!DOCTYPE html>
 		</p>
 
 		<p>
-			Spots recorded from
-			<details>
-			  <summary>Parameters</summary>
-			  <pre>
-				
-			  </pre>
-			</details>
+			Country
+			<strong>{{.Config.Country}}</strong>
+			on
+			{{range .Config.Bands}}
+			<strong>{{.}}</strong>
+			{{end}}
 		</p>
+
+		<details style="margin-bottom: 0.65em;">
+			<summary>Parameters</summary>
+			<table>
+				<thead>
+					<tr><th>Parameter</th><th>Example</th></tr>
+				</thead>
+				<tbody>
+					<tr><td>bands</td><td>bands=6m,4m,2m,70cm,23cm</td></tr>
+					<tr><td>modes</td><td>modes=FT8,FT4</td></tr>
+					<tr><td>locator</td><td>locator=KP20</td></tr>
+					<tr><td>callsign</td><td>callsign=OH2</td></tr>
+				</tbody>
+			</table>
+		</details>
 
 		{{if .Filter.Enabled}}
 		<p>
 			Filter
 			<strong>
-			{{range .Filter.Bands}}{{.}} {{end}}
-			{{range .Filter.Modes}}{{.}} {{end}}
+			{{range .Filter.Bands}}
+			{{.}}
+			{{end}}
+			{{range .Filter.Modes}}
+			{{.}}
+			{{end}}
 			{{.Filter.Locator}}
 			{{.Filter.Callsign}}
 			</strong>
-		</p>
+		<p>
 		{{end}}
 
 		<table>

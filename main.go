@@ -15,6 +15,6 @@ func main() {
 	SetupMetrics()
 	go Metrics(config.MetricsAddrPort)
 	spots := make(chan Payload, 100)
-	go Spotlog(config.SpotlogAddrPort, spots)
+	go Spotlog(config.SpotlogAddrPort, spots, config.SpotlogRetention)
 	Subscribe(*config, spots)
 }

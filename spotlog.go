@@ -35,7 +35,7 @@ var (
 	tablerowTemplate *template.Template
 )
 
-func Spotlog(addrPort string, spots <-chan Payload) {
+func Spotlog(addrPort string, spots <-chan Payload, retention time.Duration) {
 	Streamers = make(map[uint64]chan Payload)
 	go serve(addrPort)
 

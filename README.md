@@ -58,6 +58,10 @@ pskr/filter/v2/23cm/+/+/+/+/+/+/224
 For details about PSK Reporter's MQTT service, see
 [here](http://mqtt.pskreporter.info/).
 
+## Spotlog
+
+FIXME explain this
+
 ## Building
 
 A (hopefully!) up-to-date image is available on [Docker Hub](https://hub.docker.com/repository/docker/jonikahara/vushf-exporter/).
@@ -73,10 +77,6 @@ docker buildx create --name vushf-builder --bootstrap --use
 docker buildx build --push --platform linux/arm64,linux/amd64 --tag jonikahara/vushf-exporter:latest .
 ```
 
-## Spotlog
-
-FIXME explain this
-
 ## Configuration
 
 All settings go through environment variables, with following defaults:
@@ -86,6 +86,7 @@ All settings go through environment variables, with following defaults:
 * COUNTRY `224`
 * METRICS_ADDRPORT `:9108`
 * SPOTLOG_ADDRPORT `:8080`
+* SPOTLOG_RETENTION `24h`
 
 ## An example
 

@@ -137,6 +137,9 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Cache-Control", "no-cache")
 	writer.Header().Set("Connection", "keep-alive")
 	io.WriteString(writer, ": keepalive\n\n")
+	if flusher, ok := writer.(http.Flusher); ok {
+		flusher.Flush()
+	}
 
 	keepalive := time.NewTicker(25 * time.Second)
 
@@ -144,6 +147,9 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 		select {
 		case <-keepalive.C:
 			io.WriteString(writer, ": keepalive\n\n")
+			if flusher, ok := writer.(http.Flusher); ok {
+				flusher.Flush()
+			}
 		case spot := <-Streamers[id]:
 			if filter.Enabled && !filterSpot(filter, spot) {
 				continue
@@ -153,6 +159,9 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 				log.Fatal().Err(err).Msg("Could not render table row template")
 			}
 			io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
+			if flusher, ok := writer.(http.Flusher); ok {
+				flusher.Flush()
+			}
 		}
 	}
 }

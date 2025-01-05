@@ -279,7 +279,7 @@ const pageHtml = `<!DOCTYPE html>
 		</p>
 
 		<p>
-			Country
+			Recording country
 			<strong>{{.Config.Country}}</strong>
 			on
 			{{range .Config.Bands}}
@@ -354,4 +354,4 @@ const pageHtml = `<!DOCTYPE html>
 </html>
 `
 
-const tablerowHtml = `<tr><td>{{.SequenceHex}}</td><td>{{.RFC3339}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.Distance}}</td><td>{{.Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`
+const tablerowHtml = `<tr><td>{{.SequenceHex}}</td><td>{{.FormattedTime}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.Distance}}</td><td>{{.Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`

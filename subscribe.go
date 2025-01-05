@@ -25,7 +25,7 @@ type Payload struct {
 	Mode             string  `json:"md"`
 	Report           int     `json:"rp"`
 	Time             uint64  `json:"t"`
-	RFC3339          string  `json:"utc,omitempty"`
+	FormattedTime    string  `json:"formattedTime,omitempty"`
 	Distance         int64   `json:"distance,omitempty"`
 	SenderCallsign   string  `json:"sc"`
 	SenderLocator    string  `json:"sl"`
@@ -40,6 +40,8 @@ var (
 	seenMessages map[mqtt.Message]time.Time
 	seenMutex    sync.Mutex
 )
+
+const TimeFormat = "15:04:05"
 
 func Subscribe(config Config, spots chan<- Payload) {
 	opts := mqtt.NewClientOptions()
@@ -77,7 +79,7 @@ func Subscribe(config Config, spots chan<- Payload) {
 				return
 			}
 			payload.SequenceHex = fmt.Sprintf("%X", payload.SequenceNumber)
-			payload.RFC3339 = time.Unix(int64(payload.Time), 0).UTC().Format(time.RFC3339)
+			payload.FormattedTime = time.Unix(int64(payload.Time), 0).UTC().Format(TimeFormat)
 			payload.Mhz = float64(payload.Frequency) / 1000000
 
 			// Calculate distance between stations, best effort

@@ -24,19 +24,19 @@ func SetupMetrics() {
 		Namespace: Namespace,
 		Subsystem: Subsystem,
 		Name:      "sent_total",
-	}, []string{"country", "band"})
+	}, []string{"country", "band", "mode"})
 
 	received_metric = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: Namespace,
 		Subsystem: Subsystem,
 		Name:      "received_total",
-	}, []string{"country", "band"})
+	}, []string{"country", "band", "mode"})
 
 	local_metric = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: Namespace,
 		Subsystem: Subsystem,
 		Name:      "local_total",
-	}, []string{"country", "band"})
+	}, []string{"country", "band", "mode"})
 }
 
 func Metrics(addrPort string) {

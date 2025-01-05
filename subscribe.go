@@ -91,13 +91,13 @@ func Subscribe(config Config, spots chan<- Payload) {
 
 			if payload.SenderCountry == payload.ReceiverCountry {
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message within same country")
-				local_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band).Inc()
+				local_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band, payload.Mode).Inc()
 			} else if payload.SenderCountry == config.Country {
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message sent from target country")
-				sent_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band).Inc()
+				sent_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band, payload.Mode).Inc()
 			} else if payload.ReceiverCountry == config.Country {
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message received in target country")
-				received_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band).Inc()
+				received_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band, payload.Mode).Inc()
 			} else {
 				// Not sure how we got here
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("No country matches, skipping")

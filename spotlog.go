@@ -35,9 +35,9 @@ var (
 	tablerowTemplate *template.Template
 )
 
-func Spotlog(addrPort string, spots <-chan Payload, retention time.Duration) {
+func Spotlog(config Config, spots <-chan Payload) {
 	Streamers = make(map[uint64]chan Payload)
-	go serve(addrPort)
+	go serve(config)
 
 	for spot := range spots {
 		log.Debug().Any("payload", spot).Msg("Spotlogging")
@@ -53,9 +53,9 @@ func Spotlog(addrPort string, spots <-chan Payload, retention time.Duration) {
 
 		// Prune occasionally
 		if rand.Float32() > 0.9 {
-			log.Debug().Dur("retention", retention).Msg("Pruning spotlog spots")
+			log.Debug().Dur("retention", config.SpotlogRetention).Msg("Pruning spotlog spots")
 			retainedSpots := make([]*Payload, 0)
-			cutoff := uint64(time.Now().UTC().Add(-retention).Unix())
+			cutoff := uint64(time.Now().UTC().Add(-config.SpotlogRetention).Unix())
 			SpotLock.Lock()
 			for _, retained := range Spots {
 				if retained.Time >= cutoff {
@@ -80,7 +80,7 @@ func GetSpots() []*Payload {
 	return spots
 }
 
-func serve(addrPort string) {
+func serve(config Config) {
 	var err error
 
 	pageTemplate, err = template.New("page").Parse(pageHtml)
@@ -96,38 +96,43 @@ func serve(addrPort string) {
 	log.Debug().Any("page", pageTemplate).Any("tablerow", tablerowTemplate).Msg("Templates parsed")
 
 	spotlogMux := http.NewServeMux()
-	spotlogMux.HandleFunc("GET /", pageHandler)
+	spotlogMux.HandleFunc("GET /", pageHandler(config))
 	spotlogMux.HandleFunc("GET /stream/", streamHandler)
-	log.Fatal().Err(http.ListenAndServe(":8080", spotlogMux)).Send()
+	log.Fatal().Err(http.ListenAndServe(config.SpotlogAddrPort, spotlogMux)).Send()
 }
 
-func pageHandler(writer http.ResponseWriter, request *http.Request) {
-	log.Debug().Msg("Serving a page")
+func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
 
-	filter := NewFilter(request)
-	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		log.Debug().Msg("Serving a page")
 
-	var tablerows []string
-	for _, spot := range slices.Backward(GetSpots()) {
-		log.Debug().Any("spot", spot).Send()
-		if filter.Enabled && !filterSpot(filter, *spot) {
-			continue
+		filter := NewFilter(request)
+		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+		var tablerows []string
+		for _, spot := range slices.Backward(GetSpots()) {
+			log.Debug().Any("spot", spot).Send()
+			if filter.Enabled && !filterSpot(filter, *spot) {
+				continue
+			}
+			var row bytes.Buffer
+			if err := tablerowTemplate.Execute(&row, spot); err != nil {
+				log.Fatal().Err(err).Msg("Could not render table row template")
+			}
+			tablerows = append(tablerows, row.String())
 		}
-		var row bytes.Buffer
-		if err := tablerowTemplate.Execute(&row, spot); err != nil {
-			log.Fatal().Err(err).Msg("Could not render table row template")
-		}
-		tablerows = append(tablerows, row.String())
-	}
 
-	if err := pageTemplate.Execute(writer, struct {
-		Filter    Filter
-		Tablerows []string
-	}{
-		Filter:    filter,
-		Tablerows: tablerows,
-	}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to render page template")
+		if err := pageTemplate.Execute(writer, struct {
+			Config    Config
+			Filter    Filter
+			Tablerows []string
+		}{
+			Config:    config,
+			Filter:    filter,
+			Tablerows: tablerows,
+		}); err != nil {
+			log.Fatal().Err(err).Msg("Failed to render page template")
+		}
 	}
 }
 
@@ -268,9 +273,19 @@ const pageHtml = `<!DOCTYPE html>
 	</head>
 	<body>
 		<p>
-			Data sourced from N1DQ's <a href="https://pskreporter.info/">PSK Reporter</a>,
+			Data sourced from N1DQ's <a href="https://pskreporter.info/">PSK Reporter</a>
 			over M0LTE's <a href="http://mqtt.pskreporter.info/">MQTT feed</a>. Thanks!
 			This is <a href="https://github.com/kahara/vushf-exporter">kahara/vushf-exporter</a> by OH2EWL.
+		</p>
+
+		<p>
+			Spots recorded from
+			<details>
+			  <summary>Parameters</summary>
+			  <pre>
+				
+			  </pre>
+			</details>
 		</p>
 
 		{{if .Filter.Enabled}}

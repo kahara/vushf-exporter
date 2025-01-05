@@ -233,6 +233,12 @@ const pageHtml = `<!DOCTYPE html>
 			border-spacing: 1px;
 			text-align: left;
 		}
+		tr:nth-child(even) {
+			background-color: #eeeeee;
+		}
+		tbody tr:hover {
+			background: #dddddd;
+		}
 		th {
 			border: 1px solid #999999;
 			color: #000000;

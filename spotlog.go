@@ -247,11 +247,22 @@ const pageHtml = `<!DOCTYPE html>
 	</head>
 	<body>
 		<p>
-			{{.Filter.Locator}}
-			{{.Filter.Callsign}}
+			Data sourced from N1DQ's <a href="https://pskreporter.info/">PSK Reporter</a>,
+			over M0LTE's <a href="http://mqtt.pskreporter.info/">MQTT feed</a>. Thanks!
+		</p>
+
+		{{if .Filter.Enabled}}
+		<p>
+			Filter
+			<strong>
 			{{range .Filter.Bands}}{{.}} {{end}}
 			{{range .Filter.Modes}}{{.}} {{end}}
+			{{.Filter.Locator}}
+			{{.Filter.Callsign}}
+			</strong>
 		</p>
+		{{end}}
+
 		<table>
 			<thead>
 				<tr>

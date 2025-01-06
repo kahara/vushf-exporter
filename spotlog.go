@@ -15,13 +15,6 @@ import (
 	"time"
 )
 
-var (
-	Spots      []*Payload
-	SpotLock   sync.Mutex
-	Streamers  map[uint64]chan Payload
-	StreamLock sync.Mutex
-)
-
 type Filter struct {
 	Enabled  bool
 	Locator  string
@@ -30,13 +23,22 @@ type Filter struct {
 	Modes    []string
 }
 
+type Streamer struct {
+	Keepalive time.Time
+	Spots     chan *Payload
+}
+
 var (
+	Spots            []*Payload
+	SpotLock         sync.Mutex
+	Streamers        map[uint64]*Streamer
+	StreamLock       sync.Mutex
 	pageTemplate     *template.Template
 	tablerowTemplate *template.Template
 )
 
 func Spotlog(config Config, spots <-chan Payload) {
-	Streamers = make(map[uint64]chan Payload)
+	Streamers = make(map[uint64]*Streamer)
 	go serve(config)
 
 	for spot := range spots {
@@ -46,8 +48,19 @@ func Spotlog(config Config, spots <-chan Payload) {
 		SpotLock.Unlock()
 
 		StreamLock.Lock()
+		log.Debug().Int("streamers", len(Streamers)).Msg("Feeding to streamers")
+		now := time.Now()
 		for key, _ := range Streamers {
-			Streamers[key] <- spot
+			// Maybe streamer is already gone
+			if now.Sub(Streamers[key].Keepalive) > time.Minute {
+				log.Debug().Uint64("id", key).Msg("Removing streamer")
+				delete(Streamers, key)
+				continue
+			}
+			select {
+			case Streamers[key].Spots <- &spot:
+			default:
+			}
 		}
 		StreamLock.Unlock()
 
@@ -140,17 +153,13 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 	filter := NewFilter(request)
 
 	id := rand.Uint64()
-	spots := make(chan Payload, 100)
-
 	StreamLock.Lock()
-	Streamers[id] = spots
+	log.Debug().Uint64("id", id).Msg("Adding streamer")
+	Streamers[id] = &Streamer{
+		Keepalive: time.Now(),
+		Spots:     make(chan *Payload, 100),
+	}
 	StreamLock.Unlock()
-
-	defer func() {
-		StreamLock.Lock()
-		delete(Streamers, id)
-		StreamLock.Unlock()
-	}()
 
 	writer.Header().Set("Content-Type", "text/event-stream")
 	writer.Header().Set("Cache-Control", "no-cache")
@@ -163,14 +172,28 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 	keepalive := time.NewTicker(25 * time.Second)
 
 	for {
+		done := false
+		select {
+		case <-request.Context().Done():
+			log.Debug().Uint64("id", id).Msg("Streamer is gone")
+			done = true
+		default:
+		}
+		if done {
+			break
+		}
+
 		select {
 		case <-keepalive.C:
+			StreamLock.Lock()
+			Streamers[id].Keepalive = time.Now()
+			StreamLock.Unlock()
 			io.WriteString(writer, ": keepalive\n\n")
 			if flusher, ok := writer.(http.Flusher); ok {
 				flusher.Flush()
 			}
-		case spot := <-Streamers[id]:
-			if filter.Enabled && !filterSpot(filter, spot) {
+		case spot := <-Streamers[id].Spots:
+			if filter.Enabled && !filterSpot(filter, *spot) {
 				continue
 			}
 			var row bytes.Buffer

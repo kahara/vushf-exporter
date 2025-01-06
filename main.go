@@ -13,7 +13,8 @@ func main() {
 	log.Debug().Any("config", config).Msg("")
 
 	SetupMetrics()
-	go Metrics(config.AddrPort)
-
-	Subscribe(*config)
+	go Metrics(config.MetricsAddrPort)
+	spots := make(chan Payload, 100)
+	go Spotlog(*config, spots)
+	Subscribe(*config, spots)
 }

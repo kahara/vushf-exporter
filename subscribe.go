@@ -2,7 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/logocomune/maidenhead"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geo"
 	"github.com/rs/zerolog/log"
 	"math/rand"
 	"os"
@@ -14,18 +18,22 @@ import (
 )
 
 type Payload struct {
-	SequenceNumber   uint64 `json:"sq"`
-	Frequency        int    `json:"f"`
-	Mode             string `json:"md"`
-	Report           int    `json:"rp"`
-	Time             uint64 `json:"t"`
-	SenderCallsign   string `json:"sc"`
-	SenderLocator    string `json:"sl"`
-	ReceiverCallsign string `json:"rc"`
-	ReceiverLocator  string `json:"rl"`
-	SenderCountry    int    `json:"sa"`
-	ReceiverCountry  int    `json:"ra"`
-	Band             string `json:"b"`
+	SequenceNumber   uint64  `json:"sq"`
+	SequenceHex      string  `json:"sequenceHex,omitempty"`
+	Frequency        int     `json:"f"`
+	Mhz              float64 `json:"mhz,omitempty"`
+	Mode             string  `json:"md"`
+	Report           int     `json:"rp"`
+	Time             uint64  `json:"t"`
+	FormattedTime    string  `json:"formattedTime,omitempty"`
+	Distance         int64   `json:"distance,omitempty"`
+	SenderCallsign   string  `json:"sc"`
+	SenderLocator    string  `json:"sl"`
+	ReceiverCallsign string  `json:"rc"`
+	ReceiverLocator  string  `json:"rl"`
+	SenderCountry    int     `json:"sa"`
+	ReceiverCountry  int     `json:"ra"`
+	Band             string  `json:"b"`
 }
 
 var (
@@ -33,7 +41,9 @@ var (
 	seenMutex    sync.Mutex
 )
 
-func Subscribe(config Config) {
+const TimeFormat = "15:04:05"
+
+func Subscribe(config Config, spots chan<- Payload) {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(config.Broker)
 	opts.SetKeepAlive(10 * time.Second)
@@ -68,16 +78,26 @@ func Subscribe(config Config) {
 				log.Err(err).Msg("Payload unmarshalling failed")
 				return
 			}
+			payload.SequenceHex = fmt.Sprintf("%X", payload.SequenceNumber)
+			payload.FormattedTime = time.Unix(int64(payload.Time), 0).UTC().Format(TimeFormat)
+			payload.Mhz = float64(payload.Frequency) / 1000000
+
+			// Calculate distance between stations, best effort
+			senderLatitude, senderLongitude, _ := maidenhead.GridCenter(payload.SenderLocator)
+			receiverLatitude, receiverLongitude, _ := maidenhead.GridCenter(payload.ReceiverLocator)
+			payload.Distance = int64(geo.DistanceHaversine(orb.Point{senderLongitude, senderLatitude}, orb.Point{receiverLongitude, receiverLatitude}) / 1000)
+
+			spots <- payload
 
 			if payload.SenderCountry == payload.ReceiverCountry {
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message within same country")
-				local_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band).Inc()
+				local_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band, payload.Mode).Inc()
 			} else if payload.SenderCountry == config.Country {
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message sent from target country")
-				sent_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band).Inc()
+				sent_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band, payload.Mode).Inc()
 			} else if payload.ReceiverCountry == config.Country {
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message received in target country")
-				received_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band).Inc()
+				received_metric.WithLabelValues(strconv.Itoa(config.Country), payload.Band, payload.Mode).Inc()
 			} else {
 				// Not sure how we got here
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("No country matches, skipping")

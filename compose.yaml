@@ -1,6 +1,6 @@
 services:
   vushf-exporter:
-    image: jonikahara/vushf-exporter
+    image: ghcr.io/kahara/vushf-exporter:latest
     logging:
       driver: json-file
       options:
@@ -8,4 +8,5 @@ services:
         max-file: 5
     ports:
       - '9108:9108'
+      - '8071:8071'
     restart: always

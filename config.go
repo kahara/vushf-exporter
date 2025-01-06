@@ -2,24 +2,30 @@ package main
 
 import (
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
-	DefaultBands    = "6m,4m,2m,70cm,23cm"
-	DefaultCountry  = 224 // Finland; see https://www.adif.org/304/ADIF_304.htm#Country_Codes
-	DefaultBroker   = "mqtt.pskreporter.info:1883"
-	DefaultAddrPort = ":9108"
+	DefaultBands            = "6m,4m,2m,70cm,23cm"
+	DefaultCountry          = 224 // Finland; see https://www.adif.org/304/ADIF_304.htm#Country_Codes
+	DefaultBroker           = "mqtt.pskreporter.info:1883"
+	DefaultMetricsAddrPort  = ":9108"
+	DefaultSpotlogAddrPort  = ":8071"
+	DefaultSpotlogRetention = time.Duration(time.Hour * 60)
 )
 
 type Config struct {
-	Broker   string
-	Bands    []string
-	Country  int
-	Topics   []string
-	AddrPort string
+	Broker           string
+	Bands            []string
+	Country          int
+	Topics           []string
+	MetricsAddrPort  string
+	SpotlogAddrPort  string
+	SpotlogRetention time.Duration
 }
 
 func NewConfig() *Config {
@@ -33,12 +39,12 @@ func NewConfig() *Config {
 		config.Bands = strings.Split(bands, ",")
 	}
 
-	// Target country
-	targetCountry := os.Getenv("COUNTRY")
-	if targetCountry == "" {
+	// Country
+	country := os.Getenv("COUNTRY")
+	if country == "" {
 		config.Country = DefaultCountry
 	} else {
-		c, _ := strconv.Atoi(targetCountry)
+		c, _ := strconv.Atoi(country)
 		config.Country = c
 	}
 
@@ -57,11 +63,31 @@ func NewConfig() *Config {
 	}
 
 	// Metrics' address
-	addrPort := os.Getenv("ADDRPORT")
-	if addrPort == "" {
-		config.AddrPort = DefaultAddrPort
+	metricsAddrPort := os.Getenv("METRICS_ADDRPORT")
+	if metricsAddrPort == "" {
+		config.MetricsAddrPort = DefaultMetricsAddrPort
 	} else {
-		config.AddrPort = addrPort
+		config.MetricsAddrPort = metricsAddrPort
+	}
+
+	// Spotlog address
+	spotlogAddrPort := os.Getenv("SPOTLOG_ADDRPORT")
+	if spotlogAddrPort == "" {
+		config.SpotlogAddrPort = DefaultSpotlogAddrPort
+	} else {
+		config.SpotlogAddrPort = spotlogAddrPort
+	}
+
+	// Spotlog retention
+	spotlogRetention := os.Getenv("SPOTLOG_RETENTION")
+	if spotlogRetention == "" {
+		config.SpotlogRetention = DefaultSpotlogRetention
+	} else {
+		if duration, err := time.ParseDuration(spotlogRetention); err != nil {
+			log.Fatal().Err(err).Str("retention", spotlogRetention).Msg("Could not parse SPOTLOG_RETENTION")
+		} else {
+			config.SpotlogRetention = duration
+		}
 	}
 
 	return &config

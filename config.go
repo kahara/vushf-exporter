@@ -14,8 +14,8 @@ const (
 	DefaultCountry          = 224 // Finland; see https://www.adif.org/304/ADIF_304.htm#Country_Codes
 	DefaultBroker           = "mqtt.pskreporter.info:1883"
 	DefaultMetricsAddrPort  = ":9108"
-	DefaultSpotlogAddrPort  = ":8080"
-	DefaultSpotlogRetention = time.Duration(time.Hour * 24)
+	DefaultSpotlogAddrPort  = ":8071"
+	DefaultSpotlogRetention = time.Duration(time.Hour * 60)
 )
 
 type Config struct {

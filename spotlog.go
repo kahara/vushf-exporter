@@ -285,19 +285,22 @@ const pageHtml = `<!DOCTYPE html>
 			{{range .Config.Bands}}
 			<strong>{{.}}</strong>
 			{{end}}
+			with
+			<strong>{{.Config.SpotlogRetention.String}}</strong>
+			retention
 		</p>
 
 		<details style="margin-bottom: 0.65em;">
 			<summary>Parameters</summary>
 			<table>
 				<thead>
-					<tr><th>Parameter</th><th>Example</th></tr>
+					<tr><th>Parameter</th><th>Example</th><th>Note</th></tr>
 				</thead>
 				<tbody>
-					<tr><td>bands</td><td>bands=6m,4m,2m,70cm,23cm</td></tr>
-					<tr><td>modes</td><td>modes=FT8,FT4</td></tr>
-					<tr><td>locator</td><td>locator=KP20</td></tr>
-					<tr><td>callsign</td><td>callsign=OH2</td></tr>
+					<tr><td>bands</td><td>bands=6m,4m,2m,70cm,23cm</td><td>Match list exactly</td></tr>
+					<tr><td>modes</td><td>modes=FT8,FT4</td><td>Match list exactly</td></tr>
+					<tr><td>locator</td><td>locator=KP20</td><td>Match prefix</td></tr>
+					<tr><td>callsign</td><td>callsign=OH2</td><td>Match prefix</td></tr>
 				</tbody>
 			</table>
 		</details>
@@ -339,6 +342,7 @@ const pageHtml = `<!DOCTYPE html>
 			<tbody id="spots">
 				{{range .Tablerows}}{{ . }}{{end}}
 			</tbody>
+		</table>
 
 		<script>
 		const table = document.getElementById('spots');

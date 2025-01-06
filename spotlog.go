@@ -330,12 +330,12 @@ const pageHtml = `<!DOCTYPE html>
 					<th>Report</th>
 					<th>Distance</th>
 					<th>Frequency</th>
-					<th>Tx callsign</th>
-					<th>Tx locator</th>
-					<th>Tx country</th>
-					<th>Rx callsign</th>
-					<th>Rx locator</th>
-					<th>Rx country</th>
+					<th>Tx call</th>
+					<th>locator</th>
+					<th>country</th>
+					<th>Rx call</th>
+					<th>locator</th>
+					<th>country</th>
 				</tr>
 			</thead>
 			<tbody id="spots">
@@ -357,4 +357,4 @@ const pageHtml = `<!DOCTYPE html>
 </html>
 `
 
-const tablerowHtml = `<tr><td>{{.SequenceHex}}</td><td>{{.FormattedTime}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td>{{.Report}}</td><td>{{.Distance}}</td><td>{{.Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`
+const tablerowHtml = `<tr><td>{{.SequenceHex}}</td><td>{{.FormattedTime}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td style="text-align: center;">{{.Report}}</td><td style="text-align: right;">{{.Distance}}</td><td style="text-align: right;">{{printf "%.6f" .Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`

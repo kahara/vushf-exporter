@@ -11,6 +11,9 @@ services:
       METRICS_ADDRPORT: ':9108'
       SPOTLOG_ADDRPORT: ':8071'
       SPOTLOG_RETENTION: '60h'
+    ports:
+      - '9108:9108'
+      - '8071:8071'
 
   prometheus:
     restart: always

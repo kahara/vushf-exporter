@@ -52,7 +52,7 @@ func Spotlog(config Config, spots <-chan Payload) {
 		StreamLock.Unlock()
 
 		// Prune occasionally
-		if rand.Float32() > 0.9 {
+		if rand.Float32() > 0.98 {
 			log.Debug().Dur("retention", config.SpotlogRetention).Msg("Pruning spotlog spots")
 			retainedSpots := make([]*Payload, 0)
 			cutoff := uint64(time.Now().UTC().Add(-config.SpotlogRetention).Unix())
@@ -111,7 +111,6 @@ func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
 
 		var tablerows []string
 		for _, spot := range slices.Backward(GetSpots()) {
-			log.Debug().Any("spot", spot).Send()
 			if filter.Enabled && !filterSpot(filter, *spot) {
 				continue
 			}

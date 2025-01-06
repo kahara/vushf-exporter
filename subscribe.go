@@ -75,8 +75,7 @@ func Subscribe(config Config, spots chan<- Payload) {
 
 			var payload Payload
 			if err := json.Unmarshal(message.Payload(), &payload); err != nil {
-				log.Err(err).Msg("Payload unmarshalling failed")
-				return
+				log.Fatal().Err(err).Msg("Payload unmarshalling failed")
 			}
 			payload.SequenceHex = fmt.Sprintf("%X", payload.SequenceNumber)
 			payload.FormattedTime = time.Unix(int64(payload.Time), 0).UTC().Format(TimeFormat)

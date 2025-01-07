@@ -37,28 +37,29 @@ var (
 	tablerowTemplate *template.Template
 )
 
-func Spotlog(config Config, spots <-chan Payload) {
+func Spotlog(config Config, spots <-chan *Payload) {
 	Streamers = make(map[uint64]*Streamer)
 	go serve(config)
 
 	for spot := range spots {
 		log.Debug().Any("payload", spot).Msg("Spotlogging")
 		SpotLock.Lock()
-		Spots = append(Spots, &spot)
+		Spots = append(Spots, spot)
 		SpotLock.Unlock()
 
 		StreamLock.Lock()
 		log.Debug().Int("streamers", len(Streamers)).Msg("Feeding to streamers")
 		now := time.Now()
 		for key, _ := range Streamers {
-			// Maybe streamer is already gone
+			// This should not happen but perhaps a streamer is already gone, yet didn't clean up after itself
 			if now.Sub(Streamers[key].Keepalive) > time.Minute {
-				log.Debug().Uint64("id", key).Msg("Removing streamer")
+				log.Debug().Uint64("id", key).Msg("Forcibly removing streamer")
 				delete(Streamers, key)
 				continue
 			}
+			// Not a very likely occurrence, but guard against filled-up stream channels
 			select {
-			case Streamers[key].Spots <- &spot:
+			case Streamers[key].Spots <- spot:
 			default:
 			}
 		}
@@ -157,7 +158,7 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 	log.Debug().Uint64("id", id).Msg("Adding streamer")
 	Streamers[id] = &Streamer{
 		Keepalive: time.Now(),
-		Spots:     make(chan *Payload, 100),
+		Spots:     make(chan *Payload, 1000),
 	}
 	StreamLock.Unlock()
 
@@ -170,20 +171,18 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	keepalive := time.NewTicker(25 * time.Second)
+	update := time.NewTicker(333 * time.Millisecond)
 
 	for {
 		done := false
 		select {
 		case <-request.Context().Done():
-			log.Debug().Uint64("id", id).Msg("Streamer is gone")
+			log.Debug().Uint64("id", id).Msg("Streamer is gone, removing")
+			StreamLock.Lock()
+			delete(Streamers, id)
+			StreamLock.Unlock()
 			done = true
-		default:
-		}
-		if done {
 			break
-		}
-
-		select {
 		case <-keepalive.C:
 			StreamLock.Lock()
 			Streamers[id].Keepalive = time.Now()
@@ -192,18 +191,34 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 			if flusher, ok := writer.(http.Flusher); ok {
 				flusher.Flush()
 			}
-		case spot := <-Streamers[id].Spots:
-			if filter.Enabled && !filterSpot(filter, *spot) {
-				continue
+		case <-update.C:
+			StreamLock.Lock()
+			for {
+				updated := false
+				select {
+				case spot := <-Streamers[id].Spots:
+					if filter.Enabled && !filterSpot(filter, *spot) {
+						continue
+					}
+					var row bytes.Buffer
+					if err := tablerowTemplate.Execute(&row, spot); err != nil {
+						log.Fatal().Err(err).Msg("Could not render table row template")
+					}
+					io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
+					if flusher, ok := writer.(http.Flusher); ok {
+						flusher.Flush()
+					}
+				default:
+					updated = true
+				}
+				if updated {
+					break
+				}
 			}
-			var row bytes.Buffer
-			if err := tablerowTemplate.Execute(&row, spot); err != nil {
-				log.Fatal().Err(err).Msg("Could not render table row template")
-			}
-			io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
-			if flusher, ok := writer.(http.Flusher); ok {
-				flusher.Flush()
-			}
+			StreamLock.Unlock()
+		}
+		if done {
+			break
 		}
 	}
 }
@@ -325,6 +340,13 @@ const pageHtml = `<!DOCTYPE html>
 					<tr><td>callsign</td><td>callsign=OH2</td><td>Match prefix</td></tr>
 				</tbody>
 			</table>
+			<p>
+				Examples:
+				<a href="/?bands=2m,70cm">?bands=2m,70cm</a>
+				<a href="/?bands=2m,70cm&modes=FT8">?bands=2m,70cm&modes=FT8</a>
+				<a href="/?modes=FT4,WSPR&locator=KP20&callsign=OH2">?modes=FT4,WSPR&locator=KP20&callsign=OH2</a>
+				<a href="/?callsign=OH2EWL">?callsign=OH2EWL</a>
+			</p>
 		</details>
 
 		{{if .Filter.Enabled}}

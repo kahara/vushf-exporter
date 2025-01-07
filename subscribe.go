@@ -43,7 +43,7 @@ var (
 
 const TimeFormat = "15:04:05"
 
-func Subscribe(config Config, spots chan<- Payload) {
+func Subscribe(config Config, spots chan<- *Payload) {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(config.Broker)
 	opts.SetKeepAlive(10 * time.Second)
@@ -86,7 +86,7 @@ func Subscribe(config Config, spots chan<- Payload) {
 			receiverLatitude, receiverLongitude, _ := maidenhead.GridCenter(payload.ReceiverLocator)
 			payload.Distance = int64(geo.DistanceHaversine(orb.Point{senderLongitude, senderLatitude}, orb.Point{receiverLongitude, receiverLatitude}) / 1000)
 
-			spots <- payload
+			spots <- &payload
 
 			if payload.SenderCountry == payload.ReceiverCountry {
 				log.Debug().Str("topic", message.Topic()).Any("payload", payload).Msg("Recording message within same country")

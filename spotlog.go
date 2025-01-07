@@ -130,9 +130,10 @@ func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
 			}
 			var row bytes.Buffer
 			if err := tablerowTemplate.Execute(&row, spot); err != nil {
-				log.Fatal().Err(err).Msg("Could not render table row template")
+				log.Error().Err(err).Msg("Could not render table row template")
+			} else {
+				tablerows = append(tablerows, row.String())
 			}
-			tablerows = append(tablerows, row.String())
 		}
 
 		if err := pageTemplate.Execute(writer, struct {
@@ -144,7 +145,7 @@ func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
 			Filter:    filter,
 			Tablerows: tablerows,
 		}); err != nil {
-			log.Fatal().Err(err).Msg("Failed to render page template")
+			log.Error().Err(err).Msg("Failed to render page template")
 		}
 	}
 }
@@ -192,6 +193,8 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 				flusher.Flush()
 			}
 		case <-update.C:
+			var rows []string
+
 			StreamLock.Lock()
 			for {
 				updated := false
@@ -202,11 +205,9 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 					}
 					var row bytes.Buffer
 					if err := tablerowTemplate.Execute(&row, spot); err != nil {
-						log.Fatal().Err(err).Msg("Could not render table row template")
-					}
-					io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
-					if flusher, ok := writer.(http.Flusher); ok {
-						flusher.Flush()
+						log.Error().Err(err).Msg("Could not render table row template")
+					} else {
+						rows = append(rows, fmt.Sprintf("data: %s\n\n", row.String()))
 					}
 				default:
 					updated = true
@@ -216,6 +217,15 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 				}
 			}
 			StreamLock.Unlock()
+
+			if len(rows) > 0 {
+				for _, row := range rows {
+					io.WriteString(writer, row)
+				}
+				if flusher, ok := writer.(http.Flusher); ok {
+					flusher.Flush()
+				}
+			}
 		}
 		if done {
 			break

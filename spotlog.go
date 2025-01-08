@@ -193,7 +193,7 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 				flusher.Flush()
 			}
 		case <-update.C:
-			var rows []string
+			var spots []*Payload
 
 			StreamLock.Lock()
 			for {
@@ -203,12 +203,7 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 					if filter.Enabled && !filterSpot(filter, *spot) {
 						continue
 					}
-					var row bytes.Buffer
-					if err := tablerowTemplate.Execute(&row, spot); err != nil {
-						log.Error().Err(err).Msg("Could not render table row template")
-					} else {
-						rows = append(rows, fmt.Sprintf("data: %s\n\n", row.String()))
-					}
+					spots = append(spots, spot)
 				default:
 					updated = true
 				}
@@ -218,9 +213,14 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 			}
 			StreamLock.Unlock()
 
-			if len(rows) > 0 {
-				for _, row := range rows {
-					io.WriteString(writer, row)
+			if len(spots) > 0 {
+				for _, spot := range spots {
+					var row bytes.Buffer
+					if err := tablerowTemplate.Execute(&row, spot); err != nil {
+						log.Error().Err(err).Msg("Could not render table row template")
+					} else {
+						io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
+					}
 				}
 				if flusher, ok := writer.(http.Flusher); ok {
 					flusher.Flush()

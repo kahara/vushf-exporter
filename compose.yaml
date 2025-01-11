@@ -9,4 +9,6 @@ services:
     ports:
       - '9108:9108'
       - '8071:8071'
+    environment:
+      SPOTLOG_RETENTION: 24h
     restart: always

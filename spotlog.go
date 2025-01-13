@@ -76,6 +76,7 @@ func Spotlog(config Config, spots <-chan *Payload) {
 					retainedSpots = append(retainedSpots, retained)
 				}
 			}
+			Spots = make([]*Payload, len(retainedSpots))
 			copy(Spots, retainedSpots)
 			SpotLock.Unlock()
 		}

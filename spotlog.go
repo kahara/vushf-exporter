@@ -9,19 +9,10 @@ import (
 	"net/http"
 	"slices"
 	"sort"
-	"strings"
 	"sync"
 	"text/template"
 	"time"
 )
-
-type Filter struct {
-	Enabled  bool
-	Locator  string
-	Callsign string
-	Bands    []string
-	Modes    []string
-}
 
 type Streamer struct {
 	Keepalive time.Time
@@ -126,7 +117,7 @@ func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
 
 		var tablerows []string
 		for _, spot := range slices.Backward(GetSpots()) {
-			if filter.Enabled && !filterSpot(filter, *spot) {
+			if filter.Enabled && !filter.filter(*spot) {
 				continue
 			}
 			var row bytes.Buffer
@@ -201,7 +192,7 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 				updated := false
 				select {
 				case spot := <-Streamers[id].Spots:
-					if filter.Enabled && !filterSpot(filter, *spot) {
+					if filter.Enabled && !filter.filter(*spot) {
 						continue
 					}
 					spots = append(spots, spot)
@@ -232,57 +223,6 @@ func streamHandler(writer http.ResponseWriter, request *http.Request) {
 			break
 		}
 	}
-}
-
-func NewFilter(request *http.Request) Filter {
-	filter := Filter{
-		Enabled:  false,
-		Locator:  request.URL.Query().Get("locator"),
-		Callsign: request.URL.Query().Get("callsign"),
-		Bands:    strings.Split(request.URL.Query().Get("bands"), ","),
-		Modes:    strings.Split(request.URL.Query().Get("modes"), ","),
-	}
-	if filter.Locator != "" || filter.Callsign != "" {
-		filter.Enabled = true
-	}
-	if filter.Bands[0] == "" {
-		filter.Bands = nil
-	} else {
-		filter.Enabled = true
-	}
-	if filter.Modes[0] == "" {
-		filter.Modes = nil
-	} else {
-		filter.Enabled = true
-	}
-
-	log.Debug().Any("filter", filter).Msg("Filter filters")
-
-	return filter
-}
-
-func filterSpot(filter Filter, spot Payload) bool {
-	// Locator
-	if filter.Locator != "" && !(strings.HasPrefix(spot.SenderLocator, filter.Locator) || strings.HasPrefix(spot.ReceiverLocator, filter.Locator)) {
-		return false
-	}
-
-	// Callsign
-	if filter.Callsign != "" && !(strings.HasPrefix(spot.SenderCallsign, filter.Callsign) || strings.HasPrefix(spot.ReceiverCallsign, filter.Callsign)) {
-		return false
-	}
-
-	// Band
-	if len(filter.Bands) > 0 && !slices.Contains(filter.Bands, spot.Band) {
-		return false
-	}
-
-	// Mode
-	if len(filter.Modes) > 0 && !slices.Contains(filter.Modes, spot.Mode) {
-		return false
-	}
-
-	return true
 }
 
 const pageHtml = `<!DOCTYPE html>

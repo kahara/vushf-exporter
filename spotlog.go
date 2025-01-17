@@ -103,7 +103,7 @@ func serve(config Config) {
 
 	spotlogMux := http.NewServeMux()
 	spotlogMux.HandleFunc("GET /", pageHandler(config))
-	spotlogMux.HandleFunc("GET /stream/", streamHandler)
+	spotlogMux.HandleFunc("GET /stream/", streamHandler(config))
 	log.Fatal().Err(http.ListenAndServe(config.SpotlogAddrPort, spotlogMux)).Send()
 }
 
@@ -112,7 +112,7 @@ func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
 
 		log.Debug().Msg("Serving a page")
 
-		filter := NewFilter(request)
+		filter := NewFilter(config, request)
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		var tablerows []string
@@ -142,85 +142,87 @@ func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func streamHandler(writer http.ResponseWriter, request *http.Request) {
-	log.Debug().Msg("Streaming spots")
-	filter := NewFilter(request)
+func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		log.Debug().Msg("Streaming spots")
+		filter := NewFilter(config, request)
 
-	id := rand.Uint64()
-	StreamLock.Lock()
-	log.Debug().Uint64("id", id).Msg("Adding streamer")
-	Streamers[id] = &Streamer{
-		Keepalive: time.Now(),
-		Spots:     make(chan *Payload, 1000),
-	}
-	StreamLock.Unlock()
+		id := rand.Uint64()
+		StreamLock.Lock()
+		log.Debug().Uint64("id", id).Msg("Adding streamer")
+		Streamers[id] = &Streamer{
+			Keepalive: time.Now(),
+			Spots:     make(chan *Payload, 1000),
+		}
+		StreamLock.Unlock()
 
-	writer.Header().Set("Content-Type", "text/event-stream")
-	writer.Header().Set("Cache-Control", "no-cache")
-	writer.Header().Set("Connection", "keep-alive")
-	io.WriteString(writer, ": keepalive\n\n")
-	if flusher, ok := writer.(http.Flusher); ok {
-		flusher.Flush()
-	}
+		writer.Header().Set("Content-Type", "text/event-stream")
+		writer.Header().Set("Cache-Control", "no-cache")
+		writer.Header().Set("Connection", "keep-alive")
+		io.WriteString(writer, ": keepalive\n\n")
+		if flusher, ok := writer.(http.Flusher); ok {
+			flusher.Flush()
+		}
 
-	keepalive := time.NewTicker(25 * time.Second)
-	update := time.NewTicker(333 * time.Millisecond)
+		keepalive := time.NewTicker(25 * time.Second)
+		update := time.NewTicker(333 * time.Millisecond)
 
-	for {
-		done := false
-		select {
-		case <-request.Context().Done():
-			log.Debug().Uint64("id", id).Msg("Streamer is gone, removing")
-			StreamLock.Lock()
-			delete(Streamers, id)
-			StreamLock.Unlock()
-			done = true
-			break
-		case <-keepalive.C:
-			StreamLock.Lock()
-			Streamers[id].Keepalive = time.Now()
-			StreamLock.Unlock()
-			io.WriteString(writer, ": keepalive\n\n")
-			if flusher, ok := writer.(http.Flusher); ok {
-				flusher.Flush()
-			}
-		case <-update.C:
-			var spots []*Payload
-
-			StreamLock.Lock()
-			for {
-				updated := false
-				select {
-				case spot := <-Streamers[id].Spots:
-					if filter.Enabled && !filter.filter(*spot) {
-						continue
-					}
-					spots = append(spots, spot)
-				default:
-					updated = true
-				}
-				if updated {
-					break
-				}
-			}
-			StreamLock.Unlock()
-
-			if len(spots) > 0 {
-				for _, spot := range spots {
-					var row bytes.Buffer
-					if err := tablerowTemplate.Execute(&row, spot); err != nil {
-						log.Error().Err(err).Msg("Could not render table row template")
-					} else {
-						io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
-					}
-				}
+		for {
+			done := false
+			select {
+			case <-request.Context().Done():
+				log.Debug().Uint64("id", id).Msg("Streamer is gone, removing")
+				StreamLock.Lock()
+				delete(Streamers, id)
+				StreamLock.Unlock()
+				done = true
+				break
+			case <-keepalive.C:
+				StreamLock.Lock()
+				Streamers[id].Keepalive = time.Now()
+				StreamLock.Unlock()
+				io.WriteString(writer, ": keepalive\n\n")
 				if flusher, ok := writer.(http.Flusher); ok {
 					flusher.Flush()
 				}
+			case <-update.C:
+				var spots []*Payload
+
+				StreamLock.Lock()
+				for {
+					updated := false
+					select {
+					case spot := <-Streamers[id].Spots:
+						if filter.Enabled && !filter.filter(*spot) {
+							continue
+						}
+						spots = append(spots, spot)
+					default:
+						updated = true
+					}
+					if updated {
+						break
+					}
+				}
+				StreamLock.Unlock()
+
+				if len(spots) > 0 {
+					for _, spot := range spots {
+						var row bytes.Buffer
+						if err := tablerowTemplate.Execute(&row, spot); err != nil {
+							log.Error().Err(err).Msg("Could not render table row template")
+						} else {
+							io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
+						}
+					}
+					if flusher, ok := writer.(http.Flusher); ok {
+						flusher.Flush()
+					}
+				}
 			}
-		}
-		if done {
-			break
+			if done {
+				break
+			}
 		}
 	}
 }

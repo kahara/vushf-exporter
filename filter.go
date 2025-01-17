@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+const (
+	MaxModeNameLength = 8
+	MaxModeCount      = 8
+	MaxLocatorLength  = 16
+	MaxCallsignLength = 16
+)
+
 type Filter struct {
 	Enabled  bool
 	Locator  string
@@ -15,25 +22,38 @@ type Filter struct {
 	Modes    []string
 }
 
-func NewFilter(request *http.Request) Filter {
+func NewFilter(config Config, request *http.Request) Filter {
 	filter := Filter{
-		Enabled:  false,
-		Locator:  request.URL.Query().Get("locator"),
-		Callsign: request.URL.Query().Get("callsign"),
-		Bands:    strings.Split(request.URL.Query().Get("bands"), ","),
-		Modes:    strings.Split(request.URL.Query().Get("modes"), ","),
+		Enabled: false,
+		Bands: func() []string {
+			var bands []string
+			for _, band := range strings.Split(request.URL.Query().Get("bands"), ",") {
+				if slices.Contains(config.Bands, band) && !slices.Contains(bands, band) {
+					bands = append(bands, band)
+				}
+			}
+			return bands
+		}(),
+		Modes: func() []string {
+			var modes []string
+			for _, mode := range strings.Split(request.URL.Query().Get("modes"), ",") {
+				if mode != "" && len(mode) <= MaxModeNameLength && !slices.Contains(modes, mode) {
+					modes = append(modes, mode)
+				}
+			}
+			return modes[:min(len(modes), MaxModeCount)]
+		}(),
+		Locator: func() string {
+			locator := request.URL.Query().Get("locator")
+			return locator[:min(len(locator), MaxLocatorLength)]
+		}(),
+		Callsign: func() string {
+			callsign := request.URL.Query().Get("callsign")
+			return callsign[:min(len(callsign), MaxCallsignLength)]
+		}(),
 	}
-	if filter.Locator != "" || filter.Callsign != "" {
-		filter.Enabled = true
-	}
-	if filter.Bands[0] == "" {
-		filter.Bands = nil
-	} else {
-		filter.Enabled = true
-	}
-	if filter.Modes[0] == "" {
-		filter.Modes = nil
-	} else {
+
+	if filter.Bands != nil || filter.Modes != nil || filter.Locator != "" || filter.Callsign != "" {
 		filter.Enabled = true
 	}
 

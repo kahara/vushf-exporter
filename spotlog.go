@@ -103,8 +103,13 @@ func serve(config Config) {
 
 	spotlogMux := http.NewServeMux()
 	spotlogMux.HandleFunc("GET /", pageHandler(config))
+	spotlogMux.HandleFunc("GET /favicon.ico", faviconHandler)
 	spotlogMux.HandleFunc("GET /stream/", streamHandler(config))
 	log.Fatal().Err(http.ListenAndServe(config.SpotlogAddrPort, spotlogMux)).Send()
+}
+
+func faviconHandler(writer http.ResponseWriter, request *http.Request) {
+	http.ServeFile(writer, request, "favicon.ico")
 }
 
 func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {

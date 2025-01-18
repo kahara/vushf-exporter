@@ -63,6 +63,16 @@ func NewFilter(config Config, request *http.Request) Filter {
 }
 
 func (filter *Filter) filter(spot Payload) bool {
+	// Band
+	if filter.Bands != nil && !slices.Contains(filter.Bands, spot.Band) {
+		return false
+	}
+
+	// Mode
+	if filter.Modes != nil && !slices.Contains(filter.Modes, spot.Mode) {
+		return false
+	}
+
 	// Locator
 	if filter.Locator != "" && !(strings.HasPrefix(spot.SenderLocator, filter.Locator) || strings.HasPrefix(spot.ReceiverLocator, filter.Locator)) {
 		return false
@@ -70,16 +80,6 @@ func (filter *Filter) filter(spot Payload) bool {
 
 	// Callsign
 	if filter.Callsign != "" && !(strings.HasPrefix(spot.SenderCallsign, filter.Callsign) || strings.HasPrefix(spot.ReceiverCallsign, filter.Callsign)) {
-		return false
-	}
-
-	// Band
-	if len(filter.Bands) > 0 && !slices.Contains(filter.Bands, spot.Band) {
-		return false
-	}
-
-	// Mode
-	if len(filter.Modes) > 0 && !slices.Contains(filter.Modes, spot.Mode) {
 		return false
 	}
 

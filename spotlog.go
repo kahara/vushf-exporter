@@ -247,6 +247,7 @@ const pageHtml = `<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta name="author" content="Joni OH2EWL">
 		<meta name="description" content="Live view of PSK Reporter's spots from and to country {{.Config.Country}}">
 		<title>

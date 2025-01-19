@@ -104,6 +104,7 @@ func serve(config Config) {
 	spotlogMux := http.NewServeMux()
 	spotlogMux.HandleFunc("GET /", pageHandler(config))
 	spotlogMux.HandleFunc("GET /favicon.ico", faviconHandler)
+	spotlogMux.HandleFunc("GET /robots.txt", robotstxtHandler)
 	spotlogMux.HandleFunc("GET /stream/", streamHandler(config))
 	log.Fatal().Err(http.ListenAndServe(config.SpotlogAddrPort, spotlogMux)).Send()
 }
@@ -112,8 +113,18 @@ func faviconHandler(writer http.ResponseWriter, request *http.Request) {
 	http.ServeFile(writer, request, "favicon.ico")
 }
 
+func robotstxtHandler(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	io.WriteString(writer, "User-agent: *\nDisallow:\n")
+}
+
 func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
+
+		if request.URL.Path != "/" {
+			writer.WriteHeader(http.StatusNotFound)
+			return
+		}
 
 		log.Debug().Msg("Serving a page")
 
@@ -233,10 +244,23 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 }
 
 const pageHtml = `<!DOCTYPE html>
-<html>
+<html lang="en">
 	<head>
-		<meta charset="UTF-8">
-		<title>Spotlog</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="author" content="Joni OH2EWL">
+		<meta name="description" content="Live view of PSK Reporter's spots from and to country {{.Config.Country}}">
+		<title>
+		Spotlog
+		{{range .Filter.Bands}}
+		{{.}}
+		{{end}}
+		{{range .Filter.Modes}}
+		{{.}}
+		{{end}}
+		{{.Filter.Locator}}
+		{{.Filter.Callsign}}
+		</title>
 		<style>
 		body {
 			font-family: monospace;

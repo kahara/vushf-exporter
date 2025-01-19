@@ -233,7 +233,7 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 }
 
 const pageHtml = `<!DOCTYPE html>
-<html>
+<html lang="en">
 	<head>
 		<meta charset="UTF-8">
 		<title>Spotlog</title>

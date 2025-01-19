@@ -235,8 +235,20 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 const pageHtml = `<!DOCTYPE html>
 <html lang="en">
 	<head>
-		<meta charset="UTF-8">
-		<title>Spotlog</title>
+		<meta charset="utf-8">
+		<meta name="author" content="Joni OH2EWL">
+		<meta name="description" content="Live view of PSK Reporter's spots from and to country {{.Config.Country}}">
+		<title>
+		Spotlog
+		{{range .Filter.Bands}}
+		{{.}}
+		{{end}}
+		{{range .Filter.Modes}}
+		{{.}}
+		{{end}}
+		{{.Filter.Locator}}
+		{{.Filter.Callsign}}
+		</title>
 		<style>
 		body {
 			font-family: monospace;

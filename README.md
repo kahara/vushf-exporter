@@ -77,6 +77,9 @@ example:
 ?bands=2m,70cm&modes=JT65,MSK144&locator=KP20&callsign=OH2
 ```
 
+A spotlog is running in
+[spotlog.async.fi](https://spotlog.async.fi/).
+
 ## Configuration
 
 Up-to-date images for amd64, arm64 are available in

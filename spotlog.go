@@ -121,6 +121,11 @@ func robotstxtHandler(writer http.ResponseWriter, request *http.Request) {
 func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 
+		if request.URL.Path != "/" {
+			writer.WriteHeader(http.StatusNotFound)
+			return
+		}
+
 		log.Debug().Msg("Serving a page")
 
 		filter := NewFilter(config, request)

@@ -10,5 +10,6 @@ RUN go build -o vushf-exporter .
 FROM gcr.io/distroless/base-debian12 AS production
 
 COPY --from=build /workdir/vushf-exporter /
+COPY favicon.ico /
 
 CMD ["/vushf-exporter"]

@@ -104,12 +104,18 @@ func serve(config Config) {
 	spotlogMux := http.NewServeMux()
 	spotlogMux.HandleFunc("GET /", pageHandler(config))
 	spotlogMux.HandleFunc("GET /favicon.ico", faviconHandler)
+	spotlogMux.HandleFunc("GET /robots.txt", robotstxtHandler)
 	spotlogMux.HandleFunc("GET /stream/", streamHandler(config))
 	log.Fatal().Err(http.ListenAndServe(config.SpotlogAddrPort, spotlogMux)).Send()
 }
 
 func faviconHandler(writer http.ResponseWriter, request *http.Request) {
 	http.ServeFile(writer, request, "favicon.ico")
+}
+
+func robotstxtHandler(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	io.WriteString(writer, "User-agent: *\nDisallow:\n")
 }
 
 func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {

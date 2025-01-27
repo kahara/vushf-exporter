@@ -19,6 +19,8 @@ type Streamer struct {
 	Spots     chan *Payload
 }
 
+const SpotlogPruneInterval = time.Second * 90
+
 var (
 	Spots            []*Payload
 	SpotLock         sync.Mutex
@@ -30,7 +32,8 @@ var (
 
 func Spotlog(config Config, spots <-chan *Payload) {
 	Streamers = make(map[uint64]*Streamer)
-	go serve(config)
+	go serveSpotlog(config)
+	go pruneSpotlogSpots(config)
 
 	for spot := range spots {
 		log.Debug().Any("payload", spot).Msg("Spotlogging")
@@ -55,9 +58,28 @@ func Spotlog(config Config, spots <-chan *Payload) {
 			}
 		}
 		StreamLock.Unlock()
+	}
+}
 
-		// Prune occasionally
-		if rand.Float32() > 0.98 {
+func getSpotlogSpots() []*Payload {
+	SpotLock.Lock()
+	sort.Slice(Spots, func(i, j int) bool {
+		return Spots[i].Time < Spots[j].Time
+	})
+	spots := make([]*Payload, len(Spots))
+	copy(spots, Spots)
+	SpotLock.Unlock()
+
+	return spots
+}
+
+func pruneSpotlogSpots(config Config) {
+	ticker := time.NewTicker(SpotlogPruneInterval)
+
+	// FIXME once table is in order, could we simply truncate and avoid copying anything
+	for {
+		select {
+		case <-ticker.C:
 			log.Debug().Dur("retention", config.SpotlogRetention).Msg("Pruning spotlog spots")
 			retainedSpots := make([]*Payload, 0)
 			cutoff := uint64(time.Now().UTC().Add(-config.SpotlogRetention).Unix())
@@ -74,19 +96,7 @@ func Spotlog(config Config, spots <-chan *Payload) {
 	}
 }
 
-func GetSpots() []*Payload {
-	SpotLock.Lock()
-	sort.Slice(Spots, func(i, j int) bool {
-		return Spots[i].Time < Spots[j].Time
-	})
-	spots := make([]*Payload, len(Spots))
-	copy(spots, Spots)
-	SpotLock.Unlock()
-
-	return spots
-}
-
-func serve(config Config) {
+func serveSpotlog(config Config) {
 	var err error
 
 	pageTemplate, err = template.New("page").Parse(pageHtml)
@@ -132,7 +142,7 @@ func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
 		writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		var tablerows []string
-		for _, spot := range slices.Backward(GetSpots()) {
+		for _, spot := range slices.Backward(getSpotlogSpots()) {
 			if filter.Enabled && !filter.filter(*spot) {
 				continue
 			}
@@ -351,7 +361,7 @@ const pageHtml = `<!DOCTYPE html>
 			<thead>
 				<tr>
 					<th>Sequence</th>
-					<th>Time</th>
+					<th>UTC</th>
 					<th>Band</th>
 					<th>Mode</th>
 					<th>Report</th>
@@ -384,4 +394,4 @@ const pageHtml = `<!DOCTYPE html>
 </html>
 `
 
-const tablerowHtml = `<tr><td>{{.SequenceHex}}</td><td>{{.FormattedTime}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td style="text-align: center;">{{.Report}}</td><td style="text-align: right;">{{.Distance}}</td><td style="text-align: right;">{{printf "%.6f" .Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td>{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td>{{.ReceiverCountry}}</td></tr>`
+const tablerowHtml = `<tr><td>{{.SequenceHex}}</td><td>{{.FormattedTime}}</td><td>{{.Band}}</td><td>{{.Mode}}</td><td style="text-align: center;">{{.Report}}</td><td style="text-align: right;">{{.Distance}}</td><td style="text-align: right;">{{printf "%.6f" .Mhz}}</td><td>{{.SenderCallsign}}</td><td>{{.SenderLocator}}</td><td style="text-align: center;">{{.SenderCountry}}</td><td>{{.ReceiverCallsign}}</td><td>{{.ReceiverLocator}}</td><td style="text-align: center;">{{.ReceiverCountry}}</td></tr>`

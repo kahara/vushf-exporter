@@ -143,7 +143,7 @@ func prune() {
 	if rand.Float32() < 0.9 {
 		return
 	}
-	log.Debug().Any("length", len(seenMessages)).Msg("Start pruning")
+	log.Debug().Any("length", len(seenMessages)).Msg("Start pruning duplicate lookup table")
 
 	count := 0
 	now := time.Now()
@@ -156,5 +156,5 @@ func prune() {
 		}
 	}
 
-	log.Debug().Any("length", len(seenMessages)).Int("pruned", count).Msg("Done pruning")
+	log.Debug().Any("length", len(seenMessages)).Int("pruned", count).Msg("Done pruning duplicate lookup table")
 }

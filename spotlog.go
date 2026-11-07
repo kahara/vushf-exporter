@@ -20,7 +20,10 @@ type Streamer struct {
 	Spots     chan *Payload
 }
 
-const SpotlogPruneInterval = time.Second * 90
+const (
+	KeepAlive            = 25 * time.Second
+	SpotlogPruneInterval = time.Second * 90
+)
 
 var (
 	Spots            []*Payload
@@ -117,7 +120,15 @@ func serveSpotlog(config Config) {
 	spotlogMux.HandleFunc("GET /favicon.ico", faviconHandler)
 	spotlogMux.HandleFunc("GET /robots.txt", robotstxtHandler)
 	spotlogMux.HandleFunc("GET /stream/", streamHandler(config))
-	log.Fatal().Err(http.ListenAndServe(config.SpotlogAddrPort, spotlogMux)).Send()
+
+	server := &http.Server{
+		Addr:              config.SpotlogAddrPort,
+		Handler:           spotlogMux,
+		ReadTimeout:       2 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+		WriteTimeout:      0,
+	}
+	log.Fatal().Err(server.ListenAndServe()).Send()
 }
 
 func faviconHandler(writer http.ResponseWriter, request *http.Request) {
@@ -191,7 +202,7 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 			flusher.Flush()
 		}
 
-		keepalive := time.NewTicker(25 * time.Second)
+		keepalive := time.NewTicker(KeepAlive)
 		update := time.NewTicker(333 * time.Millisecond)
 
 		for {

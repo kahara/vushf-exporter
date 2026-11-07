@@ -137,7 +137,9 @@ func faviconHandler(writer http.ResponseWriter, request *http.Request) {
 
 func robotstxtHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(writer, "User-agent: *\nDisallow:\n")
+	if _, err := io.WriteString(writer, "User-agent: *\nDisallow:\n"); err != nil {
+		log.Error().Err(err).Msg("Could not write robots.txt content to client")
+	}
 }
 
 func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
@@ -197,7 +199,9 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 		writer.Header().Set("Content-Type", "text/event-stream")
 		writer.Header().Set("Cache-Control", "no-cache")
 		writer.Header().Set("Connection", "keep-alive")
-		io.WriteString(writer, ": keepalive\n\n")
+		if _, err := io.WriteString(writer, ": keepalive\n\n"); err != nil {
+			log.Error().Err(err).Msg("Could not write keepalive to client")
+		}
 		if flusher, ok := writer.(http.Flusher); ok {
 			flusher.Flush()
 		}
@@ -219,7 +223,10 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 				StreamLock.Lock()
 				Streamers[id].Keepalive = time.Now()
 				StreamLock.Unlock()
-				io.WriteString(writer, ": keepalive\n\n")
+				if _, err := io.WriteString(writer, ": keepalive\n\n"); err != nil {
+					log.Error().Err(err).Msg("Could not write keepalive to client")
+					continue
+				}
 				if flusher, ok := writer.(http.Flusher); ok {
 					flusher.Flush()
 				}
@@ -250,7 +257,10 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 						if err := tablerowTemplate.Execute(&row, spot); err != nil {
 							log.Error().Err(err).Msg("Could not render table row template")
 						} else {
-							io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
+							if _, err := io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String())); err != nil {
+								log.Error().Err(err).Msg("Could not write data to client")
+								continue
+							}
 						}
 					}
 					if flusher, ok := writer.(http.Flusher); ok {

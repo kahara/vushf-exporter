@@ -121,14 +121,14 @@ func serveSpotlog(config Config) {
 	spotlogMux.HandleFunc("GET /robots.txt", robotstxtHandler)
 	spotlogMux.HandleFunc("GET /stream/", streamHandler(config))
 
-	server := &http.Server{
+	spotlogServer := &http.Server{
 		Addr:              config.SpotlogAddrPort,
 		Handler:           spotlogMux,
 		ReadTimeout:       2 * time.Second,
 		ReadHeaderTimeout: 2 * time.Second,
 		WriteTimeout:      0,
 	}
-	log.Fatal().Err(server.ListenAndServe()).Send()
+	log.Fatal().Err(spotlogServer.ListenAndServe()).Send()
 }
 
 func faviconHandler(writer http.ResponseWriter, request *http.Request) {

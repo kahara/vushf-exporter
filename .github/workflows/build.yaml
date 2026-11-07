@@ -8,6 +8,16 @@ env:
   PLATFORMS_DOCKER: linux/amd64,linux/arm64
 
 jobs:
+  gosec:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Run Gosec
+        uses: securego/gosec@master
+        with:
+          args: ./...
+
   test-build-push:
     runs-on: ubuntu-24.04
     permissions:

@@ -3,11 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/logocomune/maidenhead"
-	"github.com/paulmach/orb"
-	"github.com/paulmach/orb/geo"
-	"github.com/rs/zerolog/log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -15,6 +10,12 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/logocomune/maidenhead"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geo"
+	"github.com/rs/zerolog/log"
 )
 
 type Payload struct {
@@ -24,7 +25,7 @@ type Payload struct {
 	Mhz              float64 `json:"mhz,omitempty"`
 	Mode             string  `json:"md"`
 	Report           int     `json:"rp"`
-	Time             uint64  `json:"t"`
+	Time             int64   `json:"t"`
 	FormattedTime    string  `json:"formattedTime,omitempty"`
 	Distance         int64   `json:"distance,omitempty"`
 	SenderCallsign   string  `json:"sc"`
@@ -79,7 +80,7 @@ func Subscribe(config Config, spots chan<- *Payload) {
 				return
 			}
 			payload.SequenceHex = fmt.Sprintf("%X", payload.SequenceNumber)
-			payload.FormattedTime = time.Unix(int64(payload.Time), 0).UTC().Format(TimeFormat)
+			payload.FormattedTime = time.Unix(payload.Time, 0).UTC().Format(TimeFormat)
 			payload.Mhz = float64(payload.Frequency) / 1000000
 
 			// Calculate distance between stations, best effort
@@ -140,7 +141,7 @@ func Subscribe(config Config, spots chan<- *Payload) {
 
 // Clean up already-seen messages, occasionally
 func prune() {
-	if rand.Float32() < 0.9 {  // #nosec G404
+	if rand.Float32() < 0.9 { // #nosec G404
 		return
 	}
 	log.Debug().Any("length", len(seenMessages)).Msg("Start pruning duplicate lookup table")

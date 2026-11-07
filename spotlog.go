@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"io"
 	"math/rand"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"text/template"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Streamer struct {
@@ -82,7 +83,7 @@ func pruneSpotlogSpots(config Config) {
 		case <-ticker.C:
 			log.Debug().Dur("retention", config.SpotlogRetention).Msg("Pruning spotlog spots")
 			retainedSpots := make([]*Payload, 0)
-			cutoff := uint64(time.Now().UTC().Add(-config.SpotlogRetention).Unix())
+			cutoff := time.Now().UTC().Add(-config.SpotlogRetention).Unix()
 			SpotLock.Lock()
 			for _, retained := range Spots {
 				if retained.Time >= cutoff {
@@ -173,7 +174,7 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 		log.Debug().Msg("Streaming spots")
 		filter := NewFilter(config, request)
 
-		id := rand.Uint64()  // #nosec G404
+		id := rand.Uint64() // #nosec G404
 		StreamLock.Lock()
 		log.Debug().Uint64("id", id).Msg("Adding streamer")
 		Streamers[id] = &Streamer{

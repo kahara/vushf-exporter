@@ -173,7 +173,7 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 		log.Debug().Msg("Streaming spots")
 		filter := NewFilter(config, request)
 
-		id := rand.Uint64()
+		id := rand.Uint64()  // #nosec G404
 		StreamLock.Lock()
 		log.Debug().Uint64("id", id).Msg("Adding streamer")
 		Streamers[id] = &Streamer{

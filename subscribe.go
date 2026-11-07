@@ -140,7 +140,7 @@ func Subscribe(config Config, spots chan<- *Payload) {
 
 // Clean up already-seen messages, occasionally
 func prune() {
-	if rand.Float32() < 0.9 {
+	if rand.Float32() < 0.9 {  // #nosec G404
 		return
 	}
 	log.Debug().Any("length", len(seenMessages)).Msg("Start pruning duplicate lookup table")

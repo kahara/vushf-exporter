@@ -37,16 +37,18 @@ type Payload struct {
 	Band             string  `json:"b"`
 }
 
+const TimeFormat = "15:04:05"
+
 var (
 	seenMessages map[mqtt.Message]time.Time
 	seenMutex    sync.Mutex
+	mqttClientID = fmt.Sprintf("vushfe-%.16x", rand.Uint64())
 )
-
-const TimeFormat = "15:04:05"
 
 func Subscribe(config Config, spots chan<- *Payload) {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(config.Broker)
+	opts.SetClientID(mqttClientID)
 	opts.SetKeepAlive(10 * time.Second)
 	opts.SetPingTimeout(2 * time.Second)
 	opts.SetOrderMatters(false)

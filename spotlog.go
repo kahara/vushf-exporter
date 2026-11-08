@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"io"
 	"math/rand"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"text/template"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Streamer struct {
@@ -19,7 +20,10 @@ type Streamer struct {
 	Spots     chan *Payload
 }
 
-const SpotlogPruneInterval = time.Second * 90
+const (
+	KeepAlive            = 25 * time.Second
+	SpotlogPruneInterval = time.Second * 90
+)
 
 var (
 	Spots            []*Payload
@@ -82,7 +86,7 @@ func pruneSpotlogSpots(config Config) {
 		case <-ticker.C:
 			log.Debug().Dur("retention", config.SpotlogRetention).Msg("Pruning spotlog spots")
 			retainedSpots := make([]*Payload, 0)
-			cutoff := uint64(time.Now().UTC().Add(-config.SpotlogRetention).Unix())
+			cutoff := time.Now().UTC().Add(-config.SpotlogRetention).Unix()
 			SpotLock.Lock()
 			for _, retained := range Spots {
 				if retained.Time >= cutoff {
@@ -116,7 +120,15 @@ func serveSpotlog(config Config) {
 	spotlogMux.HandleFunc("GET /favicon.ico", faviconHandler)
 	spotlogMux.HandleFunc("GET /robots.txt", robotstxtHandler)
 	spotlogMux.HandleFunc("GET /stream/", streamHandler(config))
-	log.Fatal().Err(http.ListenAndServe(config.SpotlogAddrPort, spotlogMux)).Send()
+
+	spotlogServer := &http.Server{
+		Addr:              config.SpotlogAddrPort,
+		Handler:           spotlogMux,
+		ReadTimeout:       2 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+		WriteTimeout:      0,
+	}
+	log.Fatal().Err(spotlogServer.ListenAndServe()).Send()
 }
 
 func faviconHandler(writer http.ResponseWriter, request *http.Request) {
@@ -125,7 +137,9 @@ func faviconHandler(writer http.ResponseWriter, request *http.Request) {
 
 func robotstxtHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(writer, "User-agent: *\nDisallow:\n")
+	if _, err := io.WriteString(writer, "User-agent: *\nDisallow:\n"); err != nil {
+		log.Error().Err(err).Msg("Could not write robots.txt content to client")
+	}
 }
 
 func pageHandler(config Config) func(http.ResponseWriter, *http.Request) {
@@ -173,7 +187,7 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 		log.Debug().Msg("Streaming spots")
 		filter := NewFilter(config, request)
 
-		id := rand.Uint64()
+		id := rand.Uint64() // #nosec G404
 		StreamLock.Lock()
 		log.Debug().Uint64("id", id).Msg("Adding streamer")
 		Streamers[id] = &Streamer{
@@ -185,12 +199,14 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 		writer.Header().Set("Content-Type", "text/event-stream")
 		writer.Header().Set("Cache-Control", "no-cache")
 		writer.Header().Set("Connection", "keep-alive")
-		io.WriteString(writer, ": keepalive\n\n")
+		if _, err := io.WriteString(writer, ": keepalive\n\n"); err != nil {
+			log.Error().Err(err).Msg("Could not write keepalive to client")
+		}
 		if flusher, ok := writer.(http.Flusher); ok {
 			flusher.Flush()
 		}
 
-		keepalive := time.NewTicker(25 * time.Second)
+		keepalive := time.NewTicker(KeepAlive)
 		update := time.NewTicker(333 * time.Millisecond)
 
 		for {
@@ -207,7 +223,10 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 				StreamLock.Lock()
 				Streamers[id].Keepalive = time.Now()
 				StreamLock.Unlock()
-				io.WriteString(writer, ": keepalive\n\n")
+				if _, err := io.WriteString(writer, ": keepalive\n\n"); err != nil {
+					log.Error().Err(err).Msg("Could not write keepalive to client")
+					continue
+				}
 				if flusher, ok := writer.(http.Flusher); ok {
 					flusher.Flush()
 				}
@@ -238,7 +257,10 @@ func streamHandler(config Config) func(http.ResponseWriter, *http.Request) {
 						if err := tablerowTemplate.Execute(&row, spot); err != nil {
 							log.Error().Err(err).Msg("Could not render table row template")
 						} else {
-							io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String()))
+							if _, err := io.WriteString(writer, fmt.Sprintf("data: %s\n\n", row.String())); err != nil {
+								log.Error().Err(err).Msg("Could not write data to client")
+								continue
+							}
 						}
 					}
 					if flusher, ok := writer.(http.Flusher); ok {

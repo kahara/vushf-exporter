@@ -1,11 +1,13 @@
 package main
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/log"
-	"net/http"
 )
 
 const (
@@ -40,8 +42,16 @@ func SetupMetrics() {
 }
 
 func Metrics(addrPort string) {
-	http.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(addrPort, nil); err != nil {
-		log.Fatal().Err(err).Str("addrport", addrPort).Msg("Could not expose Prometheus metrics")
+	metricsMux := http.NewServeMux()
+	metricsMux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+		promhttp.Handler().ServeHTTP(w, r)
+	})
+	metricsServer := &http.Server{
+		Addr:              addrPort,
+		Handler:           metricsMux,
+		ReadTimeout:       2 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+		WriteTimeout:      5 * time.Second,
 	}
+	log.Fatal().Err(metricsServer.ListenAndServe()).Send()
 }

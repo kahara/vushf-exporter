@@ -42,7 +42,7 @@ const TimeFormat = "15:04:05"
 var (
 	seenMessages map[mqtt.Message]time.Time
 	seenMutex    sync.Mutex
-	mqttClientID = fmt.Sprintf("vushfe-%.16x", rand.Uint64())
+	mqttClientID = fmt.Sprintf("vushfe-%.16x", rand.Uint64()) // #nosec G404
 )
 
 func Subscribe(config Config, spots chan<- *Payload) {
